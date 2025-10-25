@@ -1,0 +1,104 @@
+## STEP 1 — Environment Setup
+
+### Objective
+
+Create environment configuration file with all required API keys and connection strings.
+
+### Prerequisites
+
+- STEP 0 completed successfully
+- Text editor or IDE available
+
+### Actions
+
+#### 1. Create `.env.local` file in project root
+
+```bash
+touch .env.local
+```
+
+#### 2. Add environment variables
+
+Create `.env.local` with the following content:
+
+```bash
+# OpenAI Configuration
+OPENAI_API_KEY=sk-proj-REPLACE_WITH_YOUR_KEY
+
+# Tavily API Configuration
+TAVILY_API_KEY=tvly-REPLACE_WITH_YOUR_KEY
+
+# Supabase Configuration
+SUPABASE_URL=https://REPLACE_WITH_PROJECT_ID.supabase.co
+SUPABASE_ANON_KEY=REPLACE_WITH_YOUR_ANON_KEY
+
+# Application Configuration
+NEXT_PUBLIC_APP_NAME=ChatCommerce AI
+```
+
+#### 3. Verify `.gitignore` includes `.env.local`
+
+Check that `.gitignore` contains:
+
+```
+# local env files
+.env*.local
+```
+
+This is automatically included by Next.js, but verify to prevent accidental commits.
+
+### Validation
+
+- [ ] File `.env.local` exists in project root
+- [ ] All 5 environment variables are present
+- [ ] `.gitignore` includes `.env*.local`
+- [ ] File is NOT tracked by git
+
+**Validation commands:**
+
+```bash
+# Check file exists
+ls -la .env.local
+
+# Count environment variables (should be 5)
+grep -c "=" .env.local
+
+# Verify not tracked by git
+git status | grep -c ".env.local"  # Should return 0
+```
+
+### Troubleshooting
+
+**Problem**: Environment variables not loading
+**Solution**: Restart dev server after creating/modifying `.env.local`:
+
+```bash
+# Stop server (Ctrl+C), then restart
+npm run dev
+```
+
+**Problem**: Accidentally committed `.env.local`
+**Solution**: Remove from git and update `.gitignore`:
+
+```bash
+git rm --cached .env.local
+echo ".env*.local" >> .gitignore
+git add .gitignore
+git commit -m "fix: remove env file from git"
+```
+
+### Expected Outputs
+
+`.env.local` file content:
+
+```
+OPENAI_API_KEY=sk-proj-REPLACE_WITH_YOUR_KEY
+TAVILY_API_KEY=tvly-REPLACE_WITH_YOUR_KEY
+SUPABASE_URL=https://REPLACE_WITH_PROJECT_ID.supabase.co
+SUPABASE_ANON_KEY=REPLACE_WITH_YOUR_ANON_KEY
+NEXT_PUBLIC_APP_NAME=ChatCommerce AI
+```
+
+**Note**: Replace placeholder values with actual API keys before testing.
+
+---
