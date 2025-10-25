@@ -130,3 +130,94 @@ Cmd+Shift+P → "TypeScript: Restart TS Server"
 ```
 
 ---
+
+## Environment Variables
+
+### Problem: Environment variables not loading
+
+**Symptoms**:
+
+- `process.env.OPENAI_API_KEY` is `undefined`
+- API calls fail with authentication errors
+
+**Cause**: `.env.local` not created or dev server not restarted
+
+**Solution**:
+
+```bash
+# 1. Verify .env.local exists
+ls -la .env.local
+
+# 2. Check contents
+cat .env.local
+
+# 3. Restart dev server (REQUIRED after .env changes)
+# Stop server (Ctrl+C)
+npm run dev
+```
+
+**Verification**:
+
+```typescript
+// Add to API route temporarily
+console.log("API Key:", process.env.OPENAI_API_KEY?.slice(0, 10));
+```
+
+---
+
+### Problem: NEXT_PUBLIC_ variables not accessible in client
+
+**Symptoms**:
+
+```
+// In client component
+console.log(process.env.NEXT_PUBLIC_APP_NAME); // undefined
+```
+
+**Cause**: Variables need to be referenced during build
+
+**Solution**:
+
+```bash
+# 1. Ensure variable has NEXT_PUBLIC_ prefix
+NEXT_PUBLIC_APP_NAME=ChatCommerce AI
+
+# 2. Rebuild
+npm run build
+npm run dev
+
+# 3. Access correctly in client
+const appName = process.env.NEXT_PUBLIC_APP_NAME;
+```
+
+---
+
+### Problem: Environment variables work locally but not in production
+
+**Symptoms**:
+
+- App works on `localhost`
+- Fails after deploying to Vercel
+
+**Cause**: Environment variables not configured in Vercel dashboard
+
+**Solution**:
+
+```bash
+# 1. Go to Vercel project settings
+# https://vercel.com/your-username/project/settings/environment-variables
+
+# 2. Add each variable:
+OPENAI_API_KEY=sk-...
+TAVILY_API_KEY=tvly-...
+SUPABASE_URL=https://...
+SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_APP_NAME=ChatCommerce AI
+
+# 3. Select environments: Production, Preview, Development
+
+# 4. Redeploy
+vercel --prod
+```
+
+---
