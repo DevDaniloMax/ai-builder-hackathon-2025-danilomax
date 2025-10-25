@@ -1,0 +1,256 @@
+## STEP 9 — Deploy to Vercel
+
+### Objective
+
+Deploy the application to Vercel with proper environment configuration and verify production functionality.
+
+### Prerequisites
+
+- STEP 8 completed and validated locally
+- Git installed and project initialized
+- GitHub account created
+- Vercel account created (vercel.com)
+
+### Actions
+
+#### 1. Initialize Git repository
+
+```bash
+# Initialize git (if not already done)
+git init
+
+# Add all files
+git add .
+
+# Create initial commit
+git commit -m "feat: initial ChatCommerce AI implementation"
+```
+
+#### 2. Create GitHub repository
+
+**Option A: Using GitHub CLI**
+
+```bash
+# Install GitHub CLI (if not installed)
+brew install gh  # macOS
+# OR apt install gh  # Linux
+
+# Authenticate
+gh auth login
+
+# Create repository
+gh repo create chatcommerce-ai --public --source=. --push
+```
+
+**Option B: Using GitHub Web UI**
+
+1. Go to https://github.com/new
+2. Repository name: `chatcommerce-ai`
+3. Visibility: Public
+4. Do NOT initialize with README, .gitignore, or license
+5. Click "Create repository"
+6. Follow instructions to push existing repository:
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/chatcommerce-ai.git
+git branch -M main
+git push -u origin main
+```
+
+#### 3. Deploy to Vercel
+
+**Option A: Using Vercel CLI**
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Login
+vercel login
+
+# Deploy
+vercel --prod
+```
+
+**Option B: Using Vercel Dashboard**
+
+1. Go to https://vercel.com/new
+2. Click "Import Project"
+3. Select your GitHub repository
+4. Configure project:
+   - Framework Preset: Next.js
+   - Root Directory: ./
+   - Build Command: `npm run build`
+   - Output Directory: .next
+5. Click "Deploy"
+
+#### 4. Configure environment variables in Vercel
+
+1. Go to project settings: https://vercel.com/YOUR_USERNAME/chatcommerce-ai/settings/environment-variables
+2. Add each variable:
+
+```
+Name: OPENAI_API_KEY
+Value: sk-proj-YOUR_ACTUAL_KEY
+Environment: Production, Preview, Development
+
+Name: TAVILY_API_KEY
+Value: tvly-YOUR_ACTUAL_KEY
+Environment: Production, Preview, Development
+
+Name: SUPABASE_URL
+Value: https://YOUR_PROJECT_ID.supabase.co
+Environment: Production, Preview, Development
+
+Name: SUPABASE_ANON_KEY
+Value: YOUR_ACTUAL_ANON_KEY
+Environment: Production, Preview, Development
+
+Name: NEXT_PUBLIC_APP_NAME
+Value: ChatCommerce AI
+Environment: Production, Preview, Development
+```
+
+3. Click "Save" for each variable
+
+#### 5. Redeploy with environment variables
+
+```bash
+# Using CLI
+vercel --prod
+
+# OR using Dashboard
+# Go to Deployments tab → Click "Redeploy"
+```
+
+#### 6. Test production deployment
+
+```bash
+# Get deployment URL from Vercel CLI output or dashboard
+DEPLOYMENT_URL="https://chatcommerce-ai.vercel.app"
+
+# Test homepage
+curl -I $DEPLOYMENT_URL
+
+# Test API endpoint
+curl -X POST $DEPLOYMENT_URL/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Find me waterproof backpacks"}]}'
+```
+
+### Validation
+
+- [ ] Git repository created and pushed
+- [ ] Vercel project created
+- [ ] All environment variables configured
+- [ ] Deployment succeeds
+- [ ] Production URL accessible
+- [ ] Chat functionality works in production
+- [ ] Database logging works in production
+- [ ] No build errors
+
+**Validation checklist**:
+
+```bash
+# 1. Verify deployment status
+vercel ls
+
+# 2. Check build logs
+vercel logs YOUR_DEPLOYMENT_URL
+
+# 3. Test production app
+open https://chatcommerce-ai.vercel.app
+
+# 4. Monitor function logs
+vercel logs --follow
+```
+
+### Troubleshooting
+
+**Problem**: Build fails with missing dependencies
+**Solution**: Ensure all dependencies in `package.json`:
+
+```bash
+npm install
+git add package.json package-lock.json
+git commit -m "fix: update dependencies"
+git push
+```
+
+**Problem**: Environment variables not loading
+**Solution**:
+
+- Verify variables in Vercel dashboard
+- Ensure no typos in variable names
+- Redeploy after adding variables
+- Check case sensitivity
+
+**Problem**: Edge runtime errors
+**Solution**: Some packages don't support edge runtime. Options:
+
+1. Remove `export const runtime = "edge"` from route.ts
+2. OR use Node.js runtime-compatible alternatives
+
+**Problem**: API timeout in production
+**Solution**:
+
+- Vercel Hobby plan has 10s timeout
+- Optimize tool execution
+- Cache more aggressively
+- Consider upgrading plan
+
+**Problem**: CORS errors
+**Solution**: Next.js API routes handle CORS automatically. If issues persist:
+
+```typescript
+// Add to route.ts
+export async function OPTIONS(req: NextRequest) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
+}
+```
+
+### Expected Outputs
+
+**Vercel CLI output**:
+
+```
+🔍  Inspect: https://vercel.com/...
+✅  Production: https://chatcommerce-ai.vercel.app [copied]
+```
+
+**Build logs (successful)**:
+
+```
+Running "npm run build"
+> next build
+
+Creating an optimized production build ...
+✓ Compiled successfully
+✓ Linting and checking validity of types
+✓ Collecting page data
+✓ Generating static pages (5/5)
+✓ Collecting build traces
+✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    1.2 kB         80.3 kB
+└ ○ /api/chat                            0 B                0 B
+
+Build completed successfully
+```
+
+**Production test**:
+
+- App loads at production URL
+- Chat interface appears
+- Can send messages and receive responses
+- Database logs queries in Supabase
+
+---
