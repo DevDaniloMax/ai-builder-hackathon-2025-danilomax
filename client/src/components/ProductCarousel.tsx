@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Carousel, CarouselContent, CarouselItem, CarouselApi } from "@/components/ui/carousel";
+import { ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Product {
@@ -18,78 +20,154 @@ interface ProductCarouselProps {
 }
 
 export default function ProductCarousel({ products, isUser = false }: ProductCarouselProps) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+  const [count, setCount] = useState(0);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (!api) return;
+
+    setCount(api.scrollSnapList().length);
+    setCurrent(api.selectedScrollSnap());
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+
+    // Marca como pronto após um breve delay para evitar flash
+    setTimeout(() => setIsReady(true), 100);
+  }, [api]);
+
   return (
-    <div className="w-full max-w-xl mx-auto" data-testid="product-carousel">
-      <Carousel
-        opts={{
-          align: "start",
-          loop: false,
-        }}
-        className="w-full"
-      >
-        <CarouselContent className="-ml-2 md:-ml-4">
-          {products.map((product, index) => (
-            <CarouselItem key={index} className="pl-2 md:pl-4 basis-4/5 md:basis-3/5" data-testid={`carousel-item-${index}`}>
-              <Card className="p-4 hover-elevate active-elevate-2 transition-all h-full">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-start gap-2">
+    <div 
+      className={cn(
+        "w-full transition-opacity duration-300",
+        isReady ? "opacity-100" : "opacity-0"
+      )}
+      data-testid="product-carousel"
+    >
+      <div className="relative px-12">
+        <Carousel
+          setApi={setApi}
+          opts={{
+            align: "start",
+            loop: false,
+          }}
+          className="w-full"
+        >
+          <CarouselContent className="-ml-4">
+            {products.map((product, index) => (
+              <CarouselItem 
+                key={index} 
+                className="pl-4 basis-full md:basis-1/2 lg:basis-1/3" 
+                data-testid={`carousel-item-${index}`}
+              >
+                <Card className="p-6 h-full flex flex-col hover-elevate active-elevate-2 transition-all">
+                  {/* Cabeçalho com emoji e site */}
+                  <div className="flex items-center justify-between mb-4">
                     {product.emoji && (
-                      <span className="text-2xl flex-shrink-0">{product.emoji}</span>
+                      <span className="text-3xl" aria-label="Ranking">{product.emoji}</span>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base leading-tight line-clamp-2" data-testid={`product-name-${index}`}>
-                        {product.name}
-                      </h3>
-                      {product.site && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {product.site}
-                        </p>
-                      )}
-                    </div>
+                    {product.site && (
+                      <span className="text-xs px-3 py-1 rounded-full bg-muted text-muted-foreground font-medium">
+                        {product.site}
+                      </span>
+                    )}
                   </div>
 
+                  {/* Nome do produto */}
+                  <h3 
+                    className="text-lg font-semibold leading-tight mb-3 line-clamp-2 flex-grow" 
+                    data-testid={`product-name-${index}`}
+                  >
+                    {product.name}
+                  </h3>
+
+                  {/* Preço */}
                   {product.price && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm">💰</span>
-                      <span className="font-bold text-lg text-primary" data-testid={`product-price-${index}`}>
+                    <div className="mb-4">
+                      <p className="text-xl font-bold font-mono text-primary" data-testid={`product-price-${index}`}>
                         {product.price}
-                      </span>
+                      </p>
                     </div>
                   )}
 
-                  <a
-                    href={product.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                      "bg-primary text-primary-foreground hover:bg-primary/90",
-                      "w-full"
-                    )}
+                  {/* Botão de ação */}
+                  <Button
+                    asChild
+                    className="w-full mt-auto"
                     data-testid={`product-link-${index}`}
                   >
-                    Ver Produto
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              </Card>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        
-        <CarouselPrevious 
-          className="hidden md:flex -left-12" 
-          data-testid="carousel-prev"
-        />
-        <CarouselNext 
-          className="hidden md:flex -right-12" 
-          data-testid="carousel-next"
-        />
-      </Carousel>
+                    <a
+                      href={product.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2"
+                    >
+                      Ver Produto
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </Button>
+                </Card>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
 
-      <div className="text-center mt-3 text-xs text-muted-foreground">
-        Deslize para ver mais opções →
+        {/* Setas de navegação customizadas */}
+        {count > 1 && (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full shadow-lg",
+                current === 0 && "opacity-50 cursor-not-allowed"
+              )}
+              onClick={() => api?.scrollPrev()}
+              disabled={current === 0}
+              data-testid="carousel-prev"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className={cn(
+                "absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full shadow-lg",
+                current === count - 1 && "opacity-50 cursor-not-allowed"
+              )}
+              onClick={() => api?.scrollNext()}
+              disabled={current === count - 1}
+              data-testid="carousel-next"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </>
+        )}
       </div>
+
+      {/* Indicador de posição */}
+      {count > 1 && (
+        <div className="flex justify-center gap-2 mt-6">
+          {Array.from({ length: count }).map((_, index) => (
+            <button
+              key={index}
+              onClick={() => api?.scrollTo(index)}
+              className={cn(
+                "h-2 rounded-full transition-all",
+                index === current 
+                  ? "w-8 bg-primary" 
+                  : "w-2 bg-muted hover-elevate"
+              )}
+              aria-label={`Ir para produto ${index + 1}`}
+              data-testid={`indicator-product-${index}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
