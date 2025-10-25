@@ -1167,3 +1167,123 @@ messages = [
 ```
 
 ---
+
+## Testing Examples
+
+### Test 1: API Endpoint with cURL
+
+```bash
+# Basic test
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"test"}]}'
+
+# With verbose output
+curl -v -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Find laptops under $1000"}]}'
+
+# Save response to file
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"test"}]}' \
+  > response.txt
+```
+
+---
+
+### Test 2: Integration Test with Node.js
+
+```javascript
+// test-integration.js
+import fetch from "node-fetch";
+
+async function testChatAPI() {
+  const response = await fetch("http://localhost:3000/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [
+        { role: "user", content: "Find me waterproof backpacks under $200" },
+      ],
+    }),
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value);
+    console.log("Chunk:", chunk);
+  }
+}
+
+testChatAPI().catch(console.error);
+```
+
+---
+
+### Test 3: Load Testing with Artillery
+
+```yaml
+# artillery-config.yml
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+scenarios:
+  - name: "Chat API"
+    flow:
+      - post:
+          url: "/api/chat"
+          json:
+            messages:
+              - role: "user"
+                content: "Find me laptops under $1000"
+```
+
+```bash
+# Run load test
+artillery run artillery-config.yml
+```
+
+---
+
+### Test 4: Unit Test for webSearch
+
+```typescript
+// test/web.test.ts
+import { webSearch } from "@/lib/web";
+
+describe("webSearch", () => {
+  it("should return search results", async () => {
+    const results = await webSearch("test query", 5);
+
+    expect(results).toBeInstanceOf(Array);
+    expect(results.length).toBeLessThanOrEqual(5);
+
+    if (results.length > 0) {
+      expect(results[0]).toHaveProperty("title");
+      expect(results[0]).toHaveProperty("url");
+    }
+  });
+
+  it("should cache results", async () => {
+    const start1 = Date.now();
+    await webSearch("cache test", 3);
+    const time1 = Date.now() - start1;
+
+    const start2 = Date.now();
+    await webSearch("cache test", 3);
+    const time2 = Date.now() - start2;
+
+    expect(time2).toBeLessThan(time1 / 10); // 10x faster with cache
+  });
+});
+```
+
+---
