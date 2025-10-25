@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { streamText, tool } from "ai";
+import { streamText, tool, convertToModelMessages } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { searchWeb, fetchPageContent } from "./lib/web";
@@ -28,10 +28,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let extractedProducts: any[] = [];
     let userQuery = '';
 
-    try {
+    try{
+      const modelMessages = convertToModelMessages(messages);
+      
       const result = await streamText({
         model: openai('gpt-4o-mini'),
-        messages,
+        messages: modelMessages,
         system: 'You are a helpful shopping assistant. Answer questions about products in a friendly way.',
         tools: {
           // Tool 1: Search the web for products
@@ -174,9 +176,12 @@ Source URL: ${sourceUrl || 'unknown'}`;
           // Log query to database
           const latency = Date.now() - startTime;
           
-          // Get user query from messages
+          // Get user query from messages (extract from parts[] - AI SDK 5)
           const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
-          userQuery = lastUserMessage?.content || '';
+          if (lastUserMessage?.parts && Array.isArray(lastUserMessage.parts)) {
+            const textParts = lastUserMessage.parts.filter((p: any) => p.type === 'text');
+            userQuery = textParts.map((p: any) => p.text).join(' ');
+          }
 
           try {
             await db.insert(queries).values({

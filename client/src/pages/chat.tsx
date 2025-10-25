@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import Header from "@/components/Header";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
@@ -10,11 +11,12 @@ import type { Product } from "@/components/ProductCard";
 
 export default function Chat() {
   const { messages, sendMessage, status } = useChat({
-    api: '/api/chat',
-    streamProtocol: 'data',
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+    }),
   });
   
-  const isLoading = status === 'submitting' || status === 'streaming';
+  const isLoading = status === 'streaming';
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -29,9 +31,8 @@ export default function Chat() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
     
-    await sendMessage({
-      role: 'user',
-      content,
+    sendMessage({
+      text: content,
     });
   };
 
@@ -77,13 +78,22 @@ export default function Chat() {
                 return null;
               }
 
+              // Extract text content from parts array (AI SDK 5)
+              let textContent = '';
+              if (message.parts && Array.isArray(message.parts)) {
+                const textParts = message.parts.filter((p: any) => p.type === 'text');
+                textContent = textParts.map((p: any) => p.text).join(' ');
+              }
+
               return (
                 <div key={message.id} className="space-y-4">
-                  <ChatMessage
-                    role={message.role}
-                    content={message.text || message.content || ''}
-                    timestamp={timestamp}
-                  />
+                  {textContent && (
+                    <ChatMessage
+                      role={message.role}
+                      content={textContent}
+                      timestamp={timestamp}
+                    />
+                  )}
                   {products.length > 0 && (
                     <ProductGrid products={products} />
                   )}
