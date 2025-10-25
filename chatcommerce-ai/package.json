@@ -11,7 +11,10 @@
   "dependencies": {
     "next": "^15.1.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ai": "^5.0.78",
+    "@ai-sdk/openai": "^2.0.53",
+    "@supabase/supabase-js": "^2.48.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
