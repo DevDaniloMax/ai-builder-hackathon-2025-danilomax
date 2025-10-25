@@ -218,20 +218,20 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 INSTRUÇÕES CRÍTICAS:
 - Extraia até 3 produtos do texto fornecido
 - SEMPRE procure URLs de imagens no texto
-- Preços devem estar em formato "R$ XX" (string, não número)
+- Preços devem estar EXATAMENTE como aparecem no site (ex: "R$ 99,90")
+- Preço é string, NÃO número
 - Se não encontrar imagem explícita, procure por padrões:
   * URLs contendo: susercontent.com (Shopee)
   * URLs contendo: mlstatic.com (Mercado Livre)
   * URLs contendo: media-amazon.com (Amazon)
   * URLs terminando em: .jpg, .png, .webp
-- Se encontrar preço como "R$ 99,90" converta para "R$ 99"
 
 FORMATO DE RETORNO (JSON válido):
 {
   "products": [
     {
       "name": "Nome Exato do Produto",
-      "price": "R$ 99",
+      "price": "R$ 99,90",
       "image": "https://url-completa-da-imagem.jpg",
       "url": "${sourceUrl}",
       "source": "nome-do-site"
@@ -241,7 +241,8 @@ FORMATO DE RETORNO (JSON válido):
 
 IMPORTANTE:
 - Campo "image" é OBRIGATÓRIO - sempre procure no texto
-- Campo "price" deve ser string no formato "R$ XX"
+- Campo "price" deve ser string EXATA (ex: "R$ 99,90" ou "R$ 149")
+- NUNCA arredonde ou modifique o preço - mantenha como está no site
 - Se não encontrar imagem, use string vazia "" mas não omita o campo
 - Retorne APENAS o JSON, sem texto adicional
 
