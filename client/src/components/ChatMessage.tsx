@@ -13,10 +13,15 @@ function renderContentWithLinks(content: string, isUser: boolean) {
   
   return parts.map((part, index) => {
     if (part.match(urlRegex)) {
+      let cleanUrl = part.trim();
+      while (cleanUrl.endsWith(')') || cleanUrl.endsWith('.') || cleanUrl.endsWith(',')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+      
       return (
         <a
           key={index}
-          href={part}
+          href={cleanUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
@@ -25,7 +30,7 @@ function renderContentWithLinks(content: string, isUser: boolean) {
           )}
           data-testid={`link-product-${index}`}
         >
-          {part}
+          {cleanUrl}
           <ExternalLink className="w-3 h-3 inline" />
         </a>
       );
