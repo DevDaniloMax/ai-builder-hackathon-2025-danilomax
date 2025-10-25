@@ -1,9 +1,37 @@
 import { cn } from "@/lib/utils";
+import { ExternalLink } from "lucide-react";
 
 export interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   timestamp?: string;
+}
+
+function renderContentWithLinks(content: string, isUser: boolean) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = content.split(urlRegex);
+  
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "inline-flex items-center gap-1 underline hover:no-underline transition-opacity hover:opacity-80",
+            isUser ? "text-primary-foreground" : "text-primary"
+          )}
+          data-testid={`link-product-${index}`}
+        >
+          {part}
+          <ExternalLink className="w-3 h-3 inline" />
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
 }
 
 export default function ChatMessage({ role, content, timestamp }: ChatMessageProps) {
@@ -26,10 +54,10 @@ export default function ChatMessage({ role, content, timestamp }: ChatMessagePro
         )}
       >
         <div className={cn(
-          "text-base leading-relaxed whitespace-pre-wrap",
+          "text-base leading-relaxed whitespace-pre-wrap break-words",
           isUser ? "text-primary-foreground" : "text-card-foreground"
         )}>
-          {content}
+          {renderContentWithLinks(content, isUser)}
         </div>
         {timestamp && (
           <div className={cn(
