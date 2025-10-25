@@ -809,3 +809,99 @@ LIMIT 10;
 **Expected Performance**: < 500ms
 
 ---
+
+## AI SDK Integration
+
+### streamText Architecture
+
+```
+streamText() Call
+├── Configuration
+│   ├── model: openai("gpt-4o-mini")
+│   ├── messages: [...history]
+│   ├── system: "You are..."
+│   └── tools: { searchWeb, fetchPage, extractProducts }
+├── Execution Flow
+│   ├── 1. AI analyzes user intent
+│   ├── 2. AI decides to call tool(s)
+│   ├── 3. Tool execution (async)
+│   ├── 4. Results returned to AI
+│   ├── 5. AI generates response
+│   └── 6. Response streamed to client
+└── Callbacks
+    ├── onFinish: Database logging
+    └── onError: Error handling
+```
+
+### Tool Calling Mechanism
+
+**How AI SDK Tools Work**:
+
+1. **Tool Registration**:
+
+```typescript
+tools: {
+  searchWeb: tool({
+    description: "Search the web...",
+    parameters: z.object({
+      query: z.string(),
+      maxResults: z.number().optional()
+    }),
+    execute: async ({ query, maxResults }) => {
+      // Tool implementation
+      return { success: true, results: [...] };
+    }
+  })
+}
+```
+
+2. **AI Decision Process**:
+
+- AI reads tool descriptions
+- Analyzes user intent
+- Decides which tool(s) to call
+- Generates parameters for tools
+
+3. **Tool Execution**:
+
+- AI SDK intercepts tool call
+- Validates parameters (Zod schema)
+- Executes function
+- Returns results to AI
+
+4. **AI Response Generation**:
+
+- AI receives tool results
+- May call more tools if needed
+- Generates natural language response
+- Response is streamed to client
+
+### Streaming Protocol
+
+**Server-Sent Events (SSE)**:
+
+```
+Client Request → Server Process → Stream Response
+
+Format:
+0:"metadata"
+1:"token"
+1:" by"
+1:" token"
+2:{"toolCall":"searchWeb","args":{...}}
+3:{"toolResult":{...}}
+1:" based"
+1:" on"
+1:" results"
+```
+
+**Stream Event Types**:
+
+- `0`: Metadata (request ID, etc.)
+- `1`: Text token
+- `2`: Tool call started
+- `3`: Tool result
+- `error`: Error occurred
+- `done`: Stream complete
+
+---
