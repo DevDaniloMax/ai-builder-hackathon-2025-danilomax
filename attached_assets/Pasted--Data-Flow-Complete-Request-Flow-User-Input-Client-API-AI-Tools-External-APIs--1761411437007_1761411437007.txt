@@ -1,0 +1,207 @@
+## Data Flow
+
+### Complete Request Flow
+
+```
+User Input → Client → API → AI → Tools → External APIs → Response
+
+Step-by-step:
+
+1. USER TYPES MESSAGE
+   Input: "Find me waterproof backpacks under $200"
+   ↓
+2. CLIENT (useChat hook)
+   POST /api/chat
+   Body: { messages: [{ role: "user", content: "..." }] }
+   ↓
+3. API ROUTE
+   Receives request, starts streamText()
+   ↓
+4. AI MODEL (GPT-4o-mini)
+   Analyzes intent, decides to use searchWeb tool
+   ↓
+5. TOOL: searchWeb
+   Query: "waterproof backpacks under $200"
+   ↓
+6. TAVILY API
+   Returns: [{ title, url, snippet }, ...]
+   ↓
+7. AI MODEL
+   Decides to fetch content from top URLs
+   ↓
+8. TOOL: fetchPage
+   URL: "https://example.com/backpacks"
+   ↓
+9. JINA READER
+   Returns: Clean text content (12k chars)
+   ↓
+10. TOOL: extractProducts
+    Input: Raw text
+    ↓
+11. OPENAI API (GPT-4o-mini)
+    Returns: [{ name, price, url, image }, ...]
+    ↓
+12. DATABASE INSERT
+    Store products in Supabase
+    ↓
+13. AI MODEL
+    Generates natural language response with products
+    ↓
+14. RESPONSE STREAM
+    Streams tokens to client via SSE
+    ↓
+15. CLIENT RENDERS
+    Updates UI progressively as tokens arrive
+    ↓
+16. DATABASE LOG
+    onFinish: Store query and results
+```
+
+---
+
+### Data Structures at Each Layer
+
+#### Layer 1: Client Message
+
+```typescript
+{
+  id: "msg_abc123",
+  role: "user",
+  content: "Find me waterproof backpacks under $200",
+  createdAt: Date
+}
+```
+
+#### Layer 2: API Request
+
+```typescript
+{
+  messages: [
+    {
+      role: "user",
+      content: "Find me waterproof backpacks under $200",
+    },
+  ];
+}
+```
+
+#### Layer 3: Tool Invocation (searchWeb)
+
+```typescript
+{
+  tool: "searchWeb",
+  parameters: {
+    query: "waterproof backpacks under $200",
+    maxResults: 5
+  }
+}
+```
+
+#### Layer 4: Tavily Response
+
+```typescript
+{
+  results: [
+    {
+      title: "Best Waterproof Backpacks 2025",
+      url: "https://outdoorgear.com/backpacks",
+      snippet: "Top rated waterproof backpacks starting at $149...",
+      score: 0.95,
+    },
+    // ... more results
+  ];
+}
+```
+
+#### Layer 5: Tool Invocation (fetchPage)
+
+```typescript
+{
+  tool: "fetchPage",
+  parameters: {
+    url: "https://outdoorgear.com/backpacks"
+  }
+}
+```
+
+#### Layer 6: Jina Reader Response
+
+```typescript
+{
+  content: "OutdoorGear.com\n\nWaterproof Backpack Collection\n\n1. Trail Pro Backpack\nPrice: $189.99\n40L capacity, fully waterproof...\n\n2. Adventure Pack\nPrice: $175.00\n...";
+}
+```
+
+#### Layer 7: Tool Invocation (extractProducts)
+
+```typescript
+{
+  tool: "extractProducts",
+  parameters: {
+    rawText: "OutdoorGear.com\n\nWaterproof Backpack Collection\n\n1. Trail Pro..."
+  }
+}
+```
+
+#### Layer 8: OpenAI Extraction Response
+
+```typescript
+[
+  {
+    name: "Trail Pro Waterproof Backpack",
+    price: 189.99,
+    url: "https://outdoorgear.com/trail-pro",
+    image: "https://cdn.outdoorgear.com/trail-pro.jpg",
+    sku: "TP-40L-001",
+    source: "outdoorgear.com",
+  },
+  {
+    name: "Adventure Pack 45L",
+    price: 175.0,
+    url: "https://outdoorgear.com/adventure-pack",
+    image: "https://cdn.outdoorgear.com/adventure.jpg",
+    sku: "AP-45L-002",
+    source: "outdoorgear.com",
+  },
+];
+```
+
+#### Layer 9: Database Storage (products)
+
+```sql
+INSERT INTO products (name, price, url, image, sku, source)
+VALUES
+  ('Trail Pro Waterproof Backpack', 189.99, 'https://...', 'https://...', 'TP-40L-001', 'outdoorgear.com'),
+  ('Adventure Pack 45L', 175.00, 'https://...', 'https://...', 'AP-45L-002', 'outdoorgear.com');
+```
+
+#### Layer 10: AI Response (Streamed)
+
+```
+"I found 3 great waterproof backpacks under $200 for you:
+
+1. **Trail Pro Waterproof Backpack** - $189.99
+   40L capacity with fully sealed seams
+   [View Product →](https://outdoorgear.com/trail-pro)
+
+2. **Adventure Pack 45L** - $175.00
+   Perfect for multi-day hiking
+   [View Product →](https://outdoorgear.com/adventure-pack)
+
+3. **Storm Defender Backpack** - $159.99
+   Lightweight and durable
+   [View Product →](https://outdoorgear.com/storm)"
+```
+
+#### Layer 11: Database Log (queries)
+
+```sql
+INSERT INTO queries (query, results, latency_ms)
+VALUES (
+  'Find me waterproof backpacks under $200',
+  '[{...}, {...}, {...}]'::jsonb,
+  4520
+);
+```
+
+---
