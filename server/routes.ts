@@ -1,15 +1,208 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { streamText, tool } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import { z } from "zod";
+import { searchWeb, fetchPageContent } from "./lib/web";
+import { db } from "./lib/db";
+import { products, queries } from "@shared/schema";
+
+// This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
+// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+const openai = createOpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || '',
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  
+  // Chat endpoint with AI tool orchestration
+  app.post('/api/chat', async (req, res) => {
+    const { messages } = req.body;
+    
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: 'Invalid messages format' });
+    }
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+    const startTime = Date.now();
+    let extractedProducts: any[] = [];
+    let userQuery = '';
+
+    try {
+      const result = streamText({
+        model: openai('gpt-4o-mini'),
+        messages,
+        maxTokens: 8192,
+        tools: {
+          // Tool 1: Search the web for products
+          searchWeb: tool({
+            description: 'Search for products on the web using Tavily API. Returns URLs and snippets of relevant product pages.',
+            parameters: z.object({
+              query: z.string().describe('The search query to find products'),
+              maxResults: z.number().optional().default(5).describe('Maximum number of results to return'),
+            }),
+            execute: async ({ query, maxResults }) => {
+              console.log(`[Tool: searchWeb] Query: "${query}", maxResults: ${maxResults}`);
+              const results = await searchWeb(query, maxResults);
+              return results.map(r => ({
+                title: r.title,
+                url: r.url,
+                snippet: r.content?.substring(0, 200) || ''
+              }));
+            },
+          }),
+
+          // Tool 2: Fetch clean page content
+          fetchPage: tool({
+            description: 'Fetch clean text content from a URL using Jina Reader. Returns plain text suitable for analysis.',
+            parameters: z.object({
+              url: z.string().describe('The URL to fetch content from'),
+            }),
+            execute: async ({ url }) => {
+              console.log(`[Tool: fetchPage] URL: ${url}`);
+              const content = await fetchPageContent(url);
+              return content;
+            },
+          }),
+
+          // Tool 3: Extract structured product data
+          extractProducts: tool({
+            description: 'Extract structured product information from raw text content. Returns array of products with name, price, image, url.',
+            parameters: z.object({
+              rawText: z.string().describe('Raw page content to extract products from'),
+              sourceUrl: z.string().optional().describe('Source URL for reference'),
+            }),
+            execute: async ({ rawText, sourceUrl }) => {
+              console.log(`[Tool: extractProducts] Processing text (${rawText.length} chars)`);
+              
+              try {
+                // Use OpenAI to extract structured product data
+                const extractionResponse = await openai('gpt-4o-mini').doGenerate({
+                  inputFormat: 'messages',
+                  mode: { type: 'regular' },
+                  prompt: [
+                    {
+                      role: 'system',
+                      content: `You are a product data extraction expert. Extract structured product information from the provided text.
+                      
+Return a JSON object with a "products" array. Each product should have:
+- name (string, required): Product name
+- price (number, optional): Price in USD
+- image (string, optional): Image URL
+- url (string, required): Product purchase link
+- sku (string, optional): Product SKU or ID
+- source (string, optional): Domain name
+
+Extract up to 3 products maximum. Only include products with clear names and URLs.
+Return valid JSON only, no additional text.
+
+Example format:
+{
+  "products": [
+    {
+      "name": "Wireless Headphones",
+      "price": 179.99,
+      "image": "https://example.com/image.jpg",
+      "url": "https://example.com/product",
+      "sku": "HP-001",
+      "source": "example.com"
+    }
+  ]
+}`
+                    },
+                    {
+                      role: 'user',
+                      content: `Extract product information from this content:\n\n${rawText.substring(0, 8000)}\n\nSource URL: ${sourceUrl || 'unknown'}`
+                    }
+                  ],
+                });
+
+                const responseText = extractionResponse.text || '';
+                
+                // Parse JSON response
+                let parsedData;
+                try {
+                  parsedData = JSON.parse(responseText);
+                } catch (e) {
+                  // Try to extract JSON from markdown code blocks
+                  const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+                  if (jsonMatch) {
+                    parsedData = JSON.parse(jsonMatch[1]);
+                  } else {
+                    console.error('[extractProducts] Failed to parse JSON:', responseText.substring(0, 200));
+                    return { products: [] };
+                  }
+                }
+
+                const productsData = parsedData.products || [];
+                extractedProducts.push(...productsData);
+
+                // Store products in database
+                for (const product of productsData) {
+                  try {
+                    await db.insert(products).values({
+                      name: product.name,
+                      price: product.price?.toString(),
+                      image: product.image,
+                      url: product.url,
+                      sku: product.sku,
+                      source: product.source,
+                    });
+                  } catch (dbError) {
+                    console.error('[extractProducts] DB insert error:', dbError);
+                  }
+                }
+
+                console.log(`[Tool: extractProducts] Extracted ${productsData.length} products`);
+                return { products: productsData };
+              } catch (error) {
+                console.error('[Tool: extractProducts] Error:', error);
+                return { products: [] };
+              }
+            },
+          }),
+        },
+        onFinish: async ({ text }) => {
+          // Log query to database
+          const latency = Date.now() - startTime;
+          
+          // Get user query from messages
+          const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
+          userQuery = lastUserMessage?.content || '';
+
+          try {
+            await db.insert(queries).values({
+              query: userQuery,
+              results: extractedProducts.length > 0 ? extractedProducts : null,
+              latencyMs: latency,
+              error: null,
+            });
+            console.log(`[Query logged] "${userQuery}" - ${latency}ms - ${extractedProducts.length} products`);
+          } catch (error) {
+            console.error('[Query logging error]:', error);
+          }
+        },
+      });
+
+      // Stream the response
+      result.toDataStreamResponse().then(response => {
+        res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+        response.body?.pipeTo(new WritableStream({
+          write(chunk) {
+            res.write(chunk);
+          },
+          close() {
+            res.end();
+          },
+        }));
+      });
+
+    } catch (error) {
+      console.error('[Chat API Error]:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
