@@ -78,3 +78,42 @@ ChatCommerce AI is a serverless, edge-optimized conversational commerce platform
 ```
 
 ---
+
+## Architecture Principles
+
+### 1. Serverless-First
+
+- No server management
+- Automatic scaling
+- Pay-per-execution model
+- Zero idle costs
+
+### 2. Edge-Optimized
+
+- Vercel Edge Functions for low latency
+- Global CDN distribution
+- Streaming responses for better UX
+- Minimal cold start times
+
+### 3. Tool-Based AI Architecture
+
+- Modular tool design (searchWeb, fetchPage, extractProducts)
+- AI decides when and how to use tools
+- Easy to add new capabilities
+- Clear separation of concerns
+
+### 4. Real-Time Streaming
+
+- Server-Sent Events (SSE) for response streaming
+- Progressive UI updates
+- Better perceived performance
+- User sees results as they're generated
+
+### 5. Defensive Programming
+
+- Graceful error handling
+- Fallback strategies
+- Timeout protection
+- Input validation
+
+---
