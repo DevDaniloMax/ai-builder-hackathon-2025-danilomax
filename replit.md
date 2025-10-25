@@ -46,12 +46,15 @@ Preferred communication style: Simple, everyday language.
 - `fetchPage`: Retrieves full content from product pages to extract accurate product details
 - `saveLead`: Saves customer name and phone to the leads database table
 
-**Product Response Format**: Ana Clara returns products in a structured JSON format within code blocks:
+**Product Response Format**: Ana Clara returns products **EXCLUSIVELY** in a structured JSON format within code blocks:
 ```json
 {"products":[{"name":"Product Name","price":"R$ 199","url":"https://direct-product-link","image":"https://product-image.jpg","site":"Shopee","emoji":"🥇"}]}
 ```
+- **CRITICAL**: Products NEVER appear as text links - ALWAYS in carousel JSON format
+- Even when user asks "more products" multiple times, always use carousel
 - Links must be DIRECT to the specific product page (not generic search results)
 - Images must be actual product photo URLs from the product page
+- Price format: "R$ XX,XX" (always with space after R$)
 - 2-3 products displayed per carousel
 
 **Caching Strategy**: In-memory caching for both search results and page content to reduce external API calls and improve response times.
