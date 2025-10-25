@@ -1097,3 +1097,76 @@ npm dedupe react
 ```
 
 ---
+
+## Debug Tools and Techniques
+
+### 1. Enable Verbose Logging
+
+```typescript
+// lib/web.ts
+const DEBUG = process.env.NODE_ENV === "development";
+
+if (DEBUG) {
+  console.log("[DEBUG] Query:", query);
+  console.log("[DEBUG] Results:", results);
+}
+```
+
+### 2. Use Vercel Logs
+
+```bash
+# Tail production logs
+vercel logs --follow
+
+# Get logs for specific deployment
+vercel logs https://your-deployment-url.vercel.app
+```
+
+### 3. Test API Routes Directly
+
+```bash
+# Test locally
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"test"}]}' \
+  -v
+
+# Test production
+curl -X POST https://your-app.vercel.app/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"test"}]}' \
+  -v
+```
+
+### 4. Browser DevTools
+
+```javascript
+// In browser console
+// Check environment
+console.log("App name:", process.env.NEXT_PUBLIC_APP_NAME);
+
+// Monitor fetch requests
+performance
+  .getEntriesByType("resource")
+  .filter((r) => r.name.includes("/api/"))
+  .forEach((r) => console.log(r.name, r.duration));
+```
+
+### 5. Database Query Analysis
+
+```sql
+-- Enable query timing
+\timing
+
+-- Analyze slow queries
+SELECT
+  query,
+  latency_ms,
+  created_at
+FROM queries
+WHERE latency_ms > 5000
+ORDER BY latency_ms DESC
+LIMIT 10;
+```
+
+---
