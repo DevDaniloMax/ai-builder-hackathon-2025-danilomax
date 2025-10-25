@@ -446,3 +446,128 @@ export const supabase = createClient(
 ```
 
 ---
+
+## Database Issues
+
+### Problem: SQL execution fails - table already exists
+
+**Symptoms**:
+
+```
+ERROR: relation "queries" already exists
+```
+
+**Cause**: Running SQL schema script multiple times
+
+**Solution**:
+
+```sql
+-- Use IF NOT EXISTS (already in our schema)
+CREATE TABLE IF NOT EXISTS queries (...);
+
+-- Or drop and recreate (CAUTION: deletes data)
+DROP TABLE IF EXISTS queries CASCADE;
+CREATE TABLE queries (...);
+```
+
+---
+
+### Problem: Row Level Security blocking inserts
+
+**Symptoms**:
+
+```
+Error: new row violates row-level security policy
+```
+
+**Cause**: RLS enabled but no policy allows inserts
+
+**Solution**:
+
+```sql
+-- Option 1: Disable RLS (for MVP)
+ALTER TABLE queries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE products DISABLE ROW LEVEL SECURITY;
+
+-- Option 2: Add permissive policy
+ALTER TABLE queries ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous inserts" ON queries
+  FOR INSERT TO anon
+  WITH CHECK (true);
+
+-- Option 3: Use service role key (not anon key)
+// In lib/db.ts
+export const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, // Not anon key
+  { auth: { persistSession: false } }
+);
+```
+
+---
+
+### Problem: JSONB column insert fails
+
+**Symptoms**:
+
+```
+Error: invalid input syntax for type json
+```
+
+**Cause**: Passing string instead of JSON object
+
+**Solution**:
+
+```typescript
+// ❌ Wrong
+await supabase.from("queries").insert({
+  results: "[{...}]"  // String
+});
+
+// ✅ Correct
+await supabase.from("queries").insert({
+  results: [{...}]  // Array/Object
+});
+
+// Or explicitly cast
+await supabase.from("queries").insert({
+  results: JSON.parse("[{...}]")
+});
+```
+
+---
+
+### Problem: Database queries slow (> 1s)
+
+**Symptoms**:
+
+- Queries taking >1 second
+- UI feels sluggish
+
+**Cause**: Missing indexes or inefficient queries
+
+**Solution**:
+
+```sql
+-- 1. Check query performance
+EXPLAIN ANALYZE
+SELECT * FROM queries
+WHERE created_at > NOW() - INTERVAL '1 day'
+ORDER BY created_at DESC;
+
+-- 2. Add missing indexes
+CREATE INDEX CONCURRENTLY idx_queries_created_at
+  ON queries(created_at DESC);
+
+-- 3. Use pagination
+SELECT * FROM queries
+ORDER BY created_at DESC
+LIMIT 100 OFFSET 0;
+
+-- 4. Avoid SELECT * (select only needed columns)
+SELECT id, query, latency_ms
+FROM queries;
+```
+
+---
