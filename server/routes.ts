@@ -29,10 +29,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let userQuery = '';
 
     try {
-      const result = streamText({
+      const result = await streamText({
         model: openai('gpt-4o-mini'),
         messages,
-        maxTokens: 8192,
+        system: 'You are a helpful shopping assistant. When users ask for products, use the searchWeb tool to find relevant URLs, then fetchPage to get content, and extractProducts to parse product information. Be concise and helpful in your responses.',
         tools: {
           // Tool 1: Search the web for products
           searchWeb: tool({
@@ -43,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }),
             execute: async ({ query, maxResults }) => {
               console.log(`[Tool: searchWeb] Query: "${query}", maxResults: ${maxResults}`);
-              const results = await searchWeb(query, maxResults);
+              const results = await searchWeb(query, maxResults || 5);
               return results.map(r => ({
                 title: r.title,
                 url: r.url,
@@ -77,13 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               try {
                 // Use OpenAI to extract structured product data
-                const extractionResponse = await openai('gpt-4o-mini').doGenerate({
-                  inputFormat: 'messages',
-                  mode: { type: 'regular' },
-                  prompt: [
-                    {
-                      role: 'system',
-                      content: `You are a product data extraction expert. Extract structured product information from the provided text.
+                const extractionPrompt = `You are a product data extraction expert. Extract structured product information from the provided text.
                       
 Return a JSON object with a "products" array. Each product should have:
 - name (string, required): Product name
@@ -108,16 +102,31 @@ Example format:
       "source": "example.com"
     }
   ]
-}`
-                    },
-                    {
-                      role: 'user',
-                      content: `Extract product information from this content:\n\n${rawText.substring(0, 8000)}\n\nSource URL: ${sourceUrl || 'unknown'}`
-                    }
-                  ],
+}
+
+Extract product information from this content:
+
+${rawText.substring(0, 8000)}
+
+Source URL: ${sourceUrl || 'unknown'}`;
+
+                const extractionResponse = await fetch(`${process.env.AI_INTEGRATIONS_OPENAI_BASE_URL}/chat/completions`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.AI_INTEGRATIONS_OPENAI_API_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                      { role: 'user', content: extractionPrompt }
+                    ],
+                    max_tokens: 2000,
+                  }),
                 });
 
-                const responseText = extractionResponse.text || '';
+                const extractionData = await extractionResponse.json();
+                const responseText = extractionData.choices?.[0]?.message?.content || '';
                 
                 // Parse JSON response
                 let parsedData;
@@ -162,7 +171,7 @@ Example format:
             },
           }),
         },
-        onFinish: async ({ text }) => {
+        onFinish: async () => {
           // Log query to database
           const latency = Date.now() - startTime;
           
@@ -184,18 +193,8 @@ Example format:
         },
       });
 
-      // Stream the response
-      result.toDataStreamResponse().then(response => {
-        res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
-        response.body?.pipeTo(new WritableStream({
-          write(chunk) {
-            res.write(chunk);
-          },
-          close() {
-            res.end();
-          },
-        }));
-      });
+      // Use pipeDataStreamToResponse for proper streaming
+      result.pipeDataStreamToResponse(res);
 
     } catch (error) {
       console.error('[Chat API Error]:', error);

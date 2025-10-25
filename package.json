@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.53",
+    "@ai-sdk/react": "^2.0.78",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
