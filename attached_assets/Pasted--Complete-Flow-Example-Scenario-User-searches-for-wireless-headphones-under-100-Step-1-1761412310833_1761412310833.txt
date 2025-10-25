@@ -1,0 +1,266 @@
+## Complete Flow Example
+
+### Scenario: User searches for "wireless headphones under $100"
+
+**Step 1: Client sends message**
+
+```javascript
+// Frontend (page.tsx)
+const { messages, input, handleSubmit } = useChat();
+
+// User types and submits
+handleSubmit({
+  preventDefault: () => {}
+});
+
+// Request sent to /api/chat
+POST /api/chat
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "wireless headphones under $100"
+    }
+  ]
+}
+```
+
+---
+
+**Step 2: API route processes with AI SDK**
+
+```typescript
+// Backend (app/api/chat/route.ts)
+const result = streamText({
+  model: openai("gpt-4o-mini"),
+  messages,
+  tools: { searchWeb, fetchPage, extractProducts },
+});
+
+// AI decides to call searchWeb tool
+```
+
+---
+
+**Step 3: searchWeb tool executes**
+
+```typescript
+// lib/web.ts
+const results = await webSearch("wireless headphones under $100", 5);
+
+// Internal call to Tavily
+POST https://api.tavily.com/search
+{
+  "api_key": "tvly-...",
+  "query": "wireless headphones under $100",
+  "max_results": 5
+}
+
+// Tavily response
+{
+  "results": [
+    {
+      "title": "Best Budget Wireless Headphones 2025",
+      "url": "https://techreview.com/wireless-headphones-budget",
+      "snippet": "Top picks under $100..."
+    },
+    {
+      "title": "Wireless Headphones Under $100 | Amazon",
+      "url": "https://amazon.com/s?k=wireless+headphones+under+100",
+      "snippet": "Shop wireless headphones with Prime shipping..."
+    },
+    {
+      "title": "Best Cheap Wireless Headphones - CNET",
+      "url": "https://cnet.com/best-wireless-headphones-under-100",
+      "snippet": "We tested 20 models under $100..."
+    }
+  ]
+}
+```
+
+---
+
+**Step 4: fetchPage tool executes**
+
+```typescript
+// lib/web.ts
+const content = await fetchClean("https://techreview.com/wireless-headphones-budget");
+
+// Internal call to Jina Reader
+GET https://r.jina.ai/techreview.com/wireless-headphones-budget
+
+// Jina response (plain text)
+```
+
+TechReview - Best Budget Wireless Headphones 2025
+
+After extensive testing, here are our top picks under $100:
+
+1. SoundCore Q20
+   Price: $79.99
+   Battery: 40 hours
+   Noise Cancellation: Yes
+   Rating: 4.5/5
+   Buy: https://techreview.com/buy/soundcore-q20
+
+2. JBL Tune 510BT
+   Price: $49.99
+   Battery: 40 hours
+   Bluetooth 5.0
+   Rating: 4.3/5
+   Buy: https://techreview.com/buy/jbl-tune-510
+
+3. Sony WH-CH520
+   Price: $59.99
+   Battery: 50 hours
+   Lightweight design
+   Rating: 4.4/5
+   Buy: https://techreview.com/buy/sony-ch520
+
+```
+
+```
+
+---
+
+**Step 5: extractProducts tool executes**
+
+```typescript
+// lib/extract.ts
+const products = await extractProducts(content);
+
+// Internal call to OpenAI
+POST https://api.openai.com/v1/chat/completions
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a JSON-only product extractor..."
+    },
+    {
+      "role": "user",
+      "content": "Extract products from: [content]"
+    }
+  ]
+}
+
+// OpenAI response
+{
+  "choices": [{
+    "message": {
+      "content": "[{\"name\":\"SoundCore Q20\",\"price\":79.99,...}, ...]"
+    }
+  }]
+}
+
+// Parsed products
+[
+  {
+    "name": "SoundCore Q20 Wireless Headphones",
+    "price": 79.99,
+    "url": "https://techreview.com/buy/soundcore-q20",
+    "sku": "SC-Q20-001",
+    "source": "techreview.com"
+  },
+  {
+    "name": "JBL Tune 510BT",
+    "price": 49.99,
+    "url": "https://techreview.com/buy/jbl-tune-510",
+    "sku": "JBL-510BT",
+    "source": "techreview.com"
+  },
+  {
+    "name": "Sony WH-CH520",
+    "price": 59.99,
+    "url": "https://techreview.com/buy/sony-ch520",
+    "sku": "SONY-CH520",
+    "source": "techreview.com"
+  }
+]
+```
+
+---
+
+**Step 6: Store products in database**
+
+```typescript
+// Non-blocking insert
+queueMicrotask(async () => {
+  await supabase.from("products").insert(products);
+});
+
+// Supabase request
+POST https://YOUR_PROJECT.supabase.co/rest/v1/products
+[
+  {
+    "name": "SoundCore Q20 Wireless Headphones",
+    "price": 79.99,
+    "url": "https://techreview.com/buy/soundcore-q20",
+    ...
+  },
+  ...
+]
+```
+
+---
+
+**Step 7: AI generates response**
+
+```
+Stream to client:
+"I found 3 great wireless headphones under $100:
+
+1. **SoundCore Q20 Wireless Headphones** - $79.99
+   40-hour battery life with active noise cancellation
+   [View Product →](https://techreview.com/buy/soundcore-q20)
+
+2. **JBL Tune 510BT** - $49.99
+   Excellent value with 40-hour battery and Bluetooth 5.0
+   [View Product →](https://techreview.com/buy/jbl-tune-510)
+
+3. **Sony WH-CH520** - $59.99
+   Lightweight design with impressive 50-hour battery life
+   [View Product →](https://techreview.com/buy/sony-ch520)"
+```
+
+---
+
+**Step 8: Log query to database**
+
+```typescript
+// onFinish callback
+await supabase.from("queries").insert({
+  query: "wireless headphones under $100",
+  results: products,
+  latency_ms: 4320
+});
+
+// Supabase request
+POST https://YOUR_PROJECT.supabase.co/rest/v1/queries
+{
+  "query": "wireless headphones under $100",
+  "results": [...],
+  "latency_ms": 4320
+}
+```
+
+---
+
+**Step 9: Client renders response**
+
+```javascript
+// Frontend receives stream and displays
+messages = [
+  {
+    role: "user",
+    content: "wireless headphones under $100",
+  },
+  {
+    role: "assistant",
+    content: "I found 3 great wireless headphones under $100:\n\n1. ...",
+  },
+];
+```
+
+---
