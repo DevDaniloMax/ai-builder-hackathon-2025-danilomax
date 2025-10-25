@@ -9,9 +9,12 @@ import ProductGrid from "@/components/ProductGrid";
 import type { Product } from "@/components/ProductCard";
 
 export default function Chat() {
-  const { messages, append, isLoading } = useChat({
+  const { messages, sendMessage, status } = useChat({
+    api: '/api/chat',
     streamProtocol: 'data',
   });
+  
+  const isLoading = status === 'submitting' || status === 'streaming';
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -26,7 +29,7 @@ export default function Chat() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
     
-    await append({
+    await sendMessage({
       role: 'user',
       content,
     });
@@ -56,12 +59,15 @@ export default function Chat() {
                 hour12: true 
               });
               
-              // Extract products from tool calls if present
+              // Extract products from tool invocations if present
               let products: Product[] = [];
-              if (message.role === 'assistant' && message.toolCalls) {
-                for (const toolCall of message.toolCalls) {
-                  if (toolCall.toolName === 'extractProducts' && toolCall.result?.products) {
-                    products = toolCall.result.products;
+              if (message.role === 'assistant' && message.toolInvocations) {
+                for (const invocation of message.toolInvocations) {
+                  if (invocation.toolName === 'extractProducts' && invocation.state === 'result') {
+                    const result = invocation.result;
+                    if (result?.products && Array.isArray(result.products)) {
+                      products = result.products;
+                    }
                   }
                 }
               }

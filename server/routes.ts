@@ -39,11 +39,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: 'Search for products on the web using Tavily API. Returns URLs and snippets of relevant product pages.',
             parameters: z.object({
               query: z.string().describe('The search query to find products'),
-              maxResults: z.number().optional().default(5).describe('Maximum number of results to return'),
             }),
-            execute: async ({ query, maxResults }) => {
-              console.log(`[Tool: searchWeb] Query: "${query}", maxResults: ${maxResults}`);
-              const results = await searchWeb(query, maxResults || 5);
+            execute: async ({ query }) => {
+              console.log(`[Tool: searchWeb] Query: "${query}"`);
+              const results = await searchWeb(query, 5);
               return results.map(r => ({
                 title: r.title,
                 url: r.url,
@@ -151,11 +150,11 @@ Source URL: ${sourceUrl || 'unknown'}`;
                   try {
                     await db.insert(products).values({
                       name: product.name,
-                      price: product.price?.toString(),
-                      image: product.image,
+                      price: product.price ? product.price.toString() : null,
+                      image: product.image || null,
                       url: product.url,
-                      sku: product.sku,
-                      source: product.source,
+                      sku: product.sku || null,
+                      source: product.source || null,
                     });
                   } catch (dbError) {
                     console.error('[extractProducts] DB insert error:', dbError);
@@ -193,12 +192,14 @@ Source URL: ${sourceUrl || 'unknown'}`;
         },
       });
 
-      // Use pipeDataStreamToResponse for proper streaming
-      result.pipeDataStreamToResponse(res);
+      // Pipe UI message stream to Express response (includes tool calls, text, metadata)
+      result.pipeUIMessageStreamToResponse(res);
 
     } catch (error) {
       console.error('[Chat API Error]:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
     }
   });
 
