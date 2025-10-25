@@ -1,0 +1,137 @@
+## Build and Deploy Errors
+
+### Problem: Next.js build fails with TypeScript errors
+
+**Symptoms**:
+
+```
+Type error: Property 'X' does not exist on type 'Y'
+```
+
+**Cause**: Type mismatches or missing type definitions
+
+**Solution**:
+
+```bash
+# 1. Check types locally
+npx tsc --noEmit
+
+# 2. Fix type errors
+# Common fixes:
+
+// Add type assertion
+const value = data as ExpectedType;
+
+// Make property optional
+type Product = {
+  price?: number;  // Add ?
+};
+
+// Use type guard
+if ('price' in product) {
+  console.log(product.price);
+}
+
+# 3. Skip type checking temporarily (NOT RECOMMENDED)
+// next.config.js
+module.exports = {
+  typescript: {
+    ignoreBuildErrors: true,  // Only for emergency
+  },
+};
+```
+
+---
+
+### Problem: Vercel deployment fails - build timeout
+
+**Symptoms**:
+
+```
+Error: Command "npm run build" timed out after 45s
+```
+
+**Cause**: Build taking too long or infinite loop
+
+**Solution**:
+
+```bash
+# 1. Check build locally
+time npm run build
+
+# 2. Optimize dependencies
+npm prune
+npm dedupe
+
+# 3. Reduce bundle size
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+};
+
+# 4. Use build cache
+// Vercel automatically caches, but verify in dashboard
+
+# 5. Upgrade Vercel plan (if needed)
+# Hobby: 45s timeout
+# Pro: 15min timeout
+```
+
+---
+
+### Problem: Edge runtime error - unsupported API
+
+**Symptoms**:
+
+```
+Error: The edge runtime does not support Node.js 'fs' module
+```
+
+**Cause**: Using Node.js-only APIs in edge runtime
+
+**Solution**:
+
+```typescript
+// Option 1: Remove edge runtime
+// Remove from app/api/chat/route.ts
+// export const runtime = "edge";  // Comment out
+
+// Option 2: Use edge-compatible alternatives
+// Instead of fs.readFileSync():
+const response = await fetch("/api/data");
+const data = await response.json();
+
+// Option 3: Move to serverless function
+export const runtime = "nodejs"; // Use Node.js runtime
+```
+
+---
+
+### Problem: Environment variables missing in build
+
+**Symptoms**:
+
+```
+Error: process.env.OPENAI_API_KEY is undefined
+```
+
+**Cause**: Variables not available during build time
+
+**Solution**:
+
+```bash
+# For build-time variables (client-side)
+NEXT_PUBLIC_APP_NAME=ChatCommerce AI
+
+# For runtime variables (server-side)
+OPENAI_API_KEY=sk-...  # Available in API routes only
+
+# In Vercel:
+# 1. Add variables in dashboard
+# 2. Select "Production" AND "Preview" environments
+# 3. Redeploy
+```
+
+---
