@@ -64,6 +64,22 @@ export default function ProductCarousel({ products, isUser = false }: ProductCar
                 data-testid={`carousel-item-${index}`}
               >
                 <Card className="p-6 h-full flex flex-col hover-elevate active-elevate-2 transition-all">
+                  {/* Imagem do produto */}
+                  {product.image && (
+                    <div className="w-full aspect-square mb-4 rounded-lg overflow-hidden bg-muted">
+                      <img 
+                        src={product.image} 
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        data-testid={`product-image-${index}`}
+                      />
+                    </div>
+                  )}
+
                   {/* Cabeçalho com emoji e site */}
                   <div className="flex items-center justify-between mb-4">
                     {product.emoji && (
