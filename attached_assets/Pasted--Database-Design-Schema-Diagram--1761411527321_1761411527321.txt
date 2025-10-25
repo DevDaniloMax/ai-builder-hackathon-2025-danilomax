@@ -1,0 +1,115 @@
+## Database Design
+
+### Schema Diagram
+
+```
+┌─────────────────────────────────────────┐
+│             queries                      │
+├─────────────────────────────────────────┤
+│ id (UUID, PK)                           │
+│ user_id (UUID, nullable)                │
+│ query (TEXT, NOT NULL)                  │
+│ results (JSONB, nullable)               │
+│ latency_ms (INTEGER, nullable)          │
+│ error (TEXT, nullable)                  │
+│ created_at (TIMESTAMPTZ, default NOW()) │
+└─────────────────────────────────────────┘
+                 │
+                 │ 1:N (logical)
+                 ▼
+┌─────────────────────────────────────────┐
+│            products                      │
+├─────────────────────────────────────────┤
+│ id (UUID, PK)                           │
+│ sku (TEXT, nullable)                    │
+│ name (TEXT, NOT NULL)                   │
+│ price (NUMERIC, nullable)               │
+│ url (TEXT, nullable)                    │
+│ image (TEXT, nullable)                  │
+│ source (TEXT, nullable)                 │
+│ created_at (TIMESTAMPTZ, default NOW()) │
+└─────────────────────────────────────────┘
+```
+
+### Indexes
+
+**queries table**:
+
+- `idx_queries_created_at` on `created_at DESC`
+  - Purpose: Fast retrieval of recent queries
+  - Use case: Analytics, debugging
+- `idx_queries_user_id` on `user_id` (partial: WHERE user_id IS NOT NULL)
+  - Purpose: User-specific query history
+  - Use case: Future personalization feature
+
+**products table**:
+
+- `idx_products_source` on `source`
+  - Purpose: Group products by retailer
+  - Use case: Analytics by source
+- `idx_products_price` on `price` (partial: WHERE price IS NOT NULL)
+  - Purpose: Price-based queries
+  - Use case: Price analytics
+- `idx_products_created_at` on `created_at DESC`
+  - Purpose: Recently discovered products
+  - Use case: Trending products
+
+### Query Patterns
+
+#### 1. Log New Query
+
+```sql
+INSERT INTO queries (query, results, latency_ms)
+VALUES ($1, $2::jsonb, $3)
+RETURNING id;
+```
+
+**Frequency**: Every chat request
+**Expected Performance**: < 50ms
+
+#### 2. Store Products
+
+```sql
+INSERT INTO products (name, price, url, image, sku, source)
+VALUES ($1, $2, $3, $4, $5, $6);
+```
+
+**Frequency**: When products extracted
+**Expected Performance**: < 100ms (bulk insert)
+
+#### 3. Analytics - Recent Queries
+
+```sql
+SELECT
+  query,
+  jsonb_array_length(results) as product_count,
+  latency_ms,
+  created_at
+FROM queries
+WHERE created_at > NOW() - INTERVAL '24 hours'
+ORDER BY created_at DESC
+LIMIT 100;
+```
+
+**Frequency**: Dashboard views
+**Expected Performance**: < 200ms
+
+#### 4. Analytics - Popular Products
+
+```sql
+SELECT
+  source,
+  COUNT(*) as product_count,
+  AVG(price) as avg_price
+FROM products
+WHERE created_at > NOW() - INTERVAL '7 days'
+  AND price IS NOT NULL
+GROUP BY source
+ORDER BY product_count DESC
+LIMIT 10;
+```
+
+**Frequency**: Weekly reports
+**Expected Performance**: < 500ms
+
+---
