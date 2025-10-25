@@ -1,0 +1,187 @@
+## Supabase API Examples
+
+### Example 1: Insert Query Log
+
+**Request**:
+
+```bash
+curl -X POST https://YOUR_PROJECT.supabase.co/rest/v1/queries \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=representation" \
+  -d '{
+    "query": "Find me waterproof backpacks under $200",
+    "results": [
+      {
+        "name": "Trail Pro Backpack",
+        "price": 189.99,
+        "url": "https://store.com/trail-pro"
+      },
+      {
+        "name": "Adventure Pack",
+        "price": 175.00,
+        "url": "https://store.com/adventure"
+      }
+    ],
+    "latency_ms": 4520
+  }'
+```
+
+**Response**:
+
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "user_id": null,
+    "query": "Find me waterproof backpacks under $200",
+    "results": [
+      {
+        "name": "Trail Pro Backpack",
+        "price": 189.99,
+        "url": "https://store.com/trail-pro"
+      },
+      {
+        "name": "Adventure Pack",
+        "price": 175.0,
+        "url": "https://store.com/adventure"
+      }
+    ],
+    "latency_ms": 4520,
+    "error": null,
+    "created_at": "2025-10-25T10:30:00.000Z"
+  }
+]
+```
+
+**Status Code**: 201 Created
+
+---
+
+### Example 2: Insert Products (Bulk)
+
+**Request**:
+
+```bash
+curl -X POST https://YOUR_PROJECT.supabase.co/rest/v1/products \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "name": "Trail Pro Backpack",
+      "price": 189.99,
+      "url": "https://store.com/trail-pro",
+      "image": "https://cdn.store.com/trail-pro.jpg",
+      "sku": "TP-40L-001",
+      "source": "store.com"
+    },
+    {
+      "name": "Adventure Pack",
+      "price": 175.00,
+      "url": "https://store.com/adventure",
+      "image": "https://cdn.store.com/adventure.jpg",
+      "sku": "AP-45L-002",
+      "source": "store.com"
+    }
+  ]'
+```
+
+**Response**:
+
+```json
+[
+  {
+    "id": "650e8400-e29b-41d4-a716-446655440001",
+    "sku": "TP-40L-001",
+    "name": "Trail Pro Backpack",
+    "price": 189.99,
+    "url": "https://store.com/trail-pro",
+    "image": "https://cdn.store.com/trail-pro.jpg",
+    "source": "store.com",
+    "created_at": "2025-10-25T10:30:01.000Z"
+  },
+  {
+    "id": "650e8400-e29b-41d4-a716-446655440002",
+    "sku": "AP-45L-002",
+    "name": "Adventure Pack",
+    "price": 175.0,
+    "url": "https://store.com/adventure",
+    "image": "https://cdn.store.com/adventure.jpg",
+    "source": "store.com",
+    "created_at": "2025-10-25T10:30:01.000Z"
+  }
+]
+```
+
+**Status Code**: 201 Created
+
+---
+
+### Example 3: Query Recent Searches
+
+**Request**:
+
+```bash
+curl -G https://YOUR_PROJECT.supabase.co/rest/v1/queries \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  --data-urlencode "select=id,query,latency_ms,created_at" \
+  --data-urlencode "order=created_at.desc" \
+  --data-urlencode "limit=10"
+```
+
+**Response**:
+
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "query": "Find me waterproof backpacks under $200",
+    "latency_ms": 4520,
+    "created_at": "2025-10-25T10:30:00.000Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "query": "I need 50 hygiene kits under $30",
+    "latency_ms": 3890,
+    "created_at": "2025-10-25T10:25:00.000Z"
+  }
+]
+```
+
+**Status Code**: 200 OK
+
+---
+
+### Example 4: Error - Row Level Security
+
+**Request**:
+
+```bash
+curl -X POST https://YOUR_PROJECT.supabase.co/rest/v1/queries \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Authorization: Bearer YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "test query"
+  }'
+```
+
+**Response** (if RLS enabled without policy):
+
+```json
+{
+  "code": "42501",
+  "details": null,
+  "hint": null,
+  "message": "new row violates row-level security policy for table \"queries\""
+}
+```
+
+**Status Code**: 403 Forbidden
+
+**Solution**: Disable RLS or add permissive policy (see TROUBLESHOOTING.MD)
+
+---
