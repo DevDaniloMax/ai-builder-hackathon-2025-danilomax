@@ -1170,3 +1170,42 @@ LIMIT 10;
 ```
 
 ---
+
+## Getting Help
+
+If you're still stuck after trying these solutions:
+
+1. **Check Documentation**:
+
+   - [Next.js Docs](https://nextjs.org/docs)
+   - [Vercel AI SDK](https://sdk.vercel.ai/docs)
+   - [Supabase Docs](https://supabase.com/docs)
+
+2. **Search Issues**:
+
+   - GitHub Issues for each library
+   - Stack Overflow
+
+3. **Enable Debug Mode**:
+
+   ```bash
+   DEBUG=* npm run dev
+   ```
+
+4. **Create Minimal Reproduction**:
+
+   - Isolate the problem
+   - Remove unrelated code
+   - Test in isolation
+
+5. **Collect Information**:
+   - Error messages (full stack trace)
+   - Environment (Node version, OS, etc.)
+   - Steps to reproduce
+   - Expected vs actual behavior
+
+---
+
+**Document Version**: 1.0
+**Last Updated**: October 2025
+**Maintained By**: Development Team
