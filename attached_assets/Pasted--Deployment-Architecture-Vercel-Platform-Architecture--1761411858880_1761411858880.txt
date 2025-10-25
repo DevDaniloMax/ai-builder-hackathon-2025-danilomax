@@ -1,0 +1,119 @@
+## Deployment Architecture
+
+### Vercel Platform Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Vercel Global Network                 │
+│                                                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │ Edge: US-E  │  │ Edge: EU-W  │  │ Edge: AP-SE │    │
+│  │             │  │             │  │             │    │
+│  │ /api/chat   │  │ /api/chat   │  │ /api/chat   │    │
+│  └─────────────┘  └─────────────┘  └─────────────┘    │
+│         │                 │                 │           │
+│         └─────────────────┴─────────────────┘           │
+│                          │                               │
+└──────────────────────────┼───────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Static Assets (CDN)                    │
+│  - Next.js pages (HTML, CSS, JS)                        │
+│  - Public files                                          │
+│  - Build artifacts                                       │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Deployment Process
+
+```
+git push → GitHub → Vercel Build → Deploy to Edge
+
+1. Code Push
+   Developer pushes to GitHub
+   ↓
+2. Webhook
+   Vercel notified of new commit
+   ↓
+3. Build
+   - npm install
+   - npm run build
+   - Next.js compilation
+   ↓
+4. Deploy
+   - Static assets → CDN
+   - API routes → Edge functions
+   - Environment vars injected
+   ↓
+5. Activate
+   - DNS updates
+   - Traffic switched to new version
+   - Zero downtime
+```
+
+### Environment Management
+
+```
+Development    → .env.local (not committed)
+Preview        → Vercel Dashboard (branch deploys)
+Production     → Vercel Dashboard (main branch)
+```
+
+**Best Practices**:
+
+- Use different API keys per environment
+- Test in preview deployments first
+- Monitor production logs
+- Set up alerts for errors
+
+### Monitoring and Observability
+
+**Built-in Vercel Analytics**:
+
+- Request count
+- Error rate
+- Response time
+- Geographic distribution
+
+**Logging**:
+
+```typescript
+console.log("[INFO] ..."); // Show in Vercel logs
+console.error("[ERROR] ..."); // Trigger alerts
+```
+
+**Custom Metrics**:
+
+```typescript
+// Log to Supabase for custom analytics
+await supabase.from("queries").insert({
+  query,
+  latency_ms,
+  created_at: new Date(),
+});
+```
+
+### Scaling Considerations
+
+**Automatic Scaling**:
+
+- Vercel handles automatically
+- No configuration needed
+- Scales to zero when idle
+
+**Limits (Hobby Plan)**:
+
+- 100 GB bandwidth/month
+- 100 hours function execution/month
+- 10s function timeout
+- 1,000 edge requests/day
+
+**When to Upgrade**:
+
+- Consistent >1000 requests/day
+- Need longer timeouts
+- Need team collaboration
+- Need advanced analytics
+
+---
