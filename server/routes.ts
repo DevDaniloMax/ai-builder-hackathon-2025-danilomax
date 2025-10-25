@@ -29,8 +29,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let userQuery = '';
 
     try{
-      // Delay humanizado de 5-7 segundos para simular tempo de processamento natural
-      const humanDelay = Math.floor(Math.random() * 2000) + 5000; // 5000-7000ms
+      // Delay humanizado: 2s para primeira mensagem, 5-7s para as demais
+      const isFirstMessage = messages.length === 1;
+      const humanDelay = isFirstMessage 
+        ? 2000 // Primeira mensagem: 2 segundos
+        : Math.floor(Math.random() * 2000) + 5000; // Demais: 5-7 segundos
       await new Promise(resolve => setTimeout(resolve, humanDelay));
       
       const modelMessages = convertToModelMessages(messages);
