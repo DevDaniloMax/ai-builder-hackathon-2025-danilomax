@@ -117,3 +117,153 @@ ChatCommerce AI is a serverless, edge-optimized conversational commerce platform
 - Input validation
 
 ---
+
+## Component Architecture
+
+### Frontend Components
+
+#### 1. Chat Interface (`app/page.tsx`)
+
+```
+ChatPage Component
+├── useChat() Hook
+│   ├── messages state
+│   ├── input state
+│   ├── isLoading state
+│   └── handleSubmit()
+├── Message List
+│   ├── User messages (right-aligned, blue)
+│   ├── Assistant messages (left-aligned, white)
+│   └── Auto-scroll behavior
+└── Input Form
+    ├── Text input
+    └── Submit button
+```
+
+**Responsibilities**:
+
+- Render chat interface
+- Manage message state
+- Handle user input
+- Display streaming responses
+- Auto-scroll to new messages
+
+**Key Features**:
+
+- Real-time streaming via SSE
+- Markdown rendering (links, bold)
+- Loading indicators
+- Error display
+- Suggested queries
+
+---
+
+### Backend Components
+
+#### 2. API Route (`app/api/chat/route.ts`)
+
+```
+POST /api/chat
+├── Request Validation
+├── streamText() Setup
+│   ├── Model: GPT-4o-mini
+│   ├── System Prompt
+│   ├── Messages History
+│   └── Tools Configuration
+├── Tool Execution
+│   ├── searchWeb
+│   ├── fetchPage
+│   └── extractProducts
+└── Response Streaming
+    └── onFinish Hook
+```
+
+**Responsibilities**:
+
+- Receive chat messages
+- Orchestrate AI tools
+- Stream responses
+- Log queries and results
+- Error handling
+
+**Configuration**:
+
+- Runtime: Edge
+- Model: gpt-4o-mini
+- Temperature: 0.7 (default)
+- Max tokens: Auto
+
+---
+
+#### 3. Web Search Module (`lib/web.ts`)
+
+```
+web.ts
+├── webSearch()
+│   ├── Cache check
+│   ├── Tavily API call
+│   ├── Result mapping
+│   └── Cache storage
+├── fetchClean()
+│   ├── Cache check
+│   ├── Jina Reader proxy
+│   ├── Content truncation
+│   └── Cache storage
+└── Cache Management
+    ├── In-memory Map
+    ├── TTL checking
+    └── Size limiting
+```
+
+**Responsibilities**:
+
+- Search web via Tavily
+- Fetch clean page content via Jina
+- Cache results for performance
+- Handle API failures gracefully
+
+---
+
+#### 4. Product Extraction Module (`lib/extract.ts`)
+
+```
+extract.ts
+└── extractProducts()
+    ├── Input validation
+    ├── Prompt construction
+    ├── OpenAI API call
+    ├── JSON parsing
+    ├── Data validation
+    └── Type mapping
+```
+
+**Responsibilities**:
+
+- Extract products from raw text
+- Parse LLM JSON output
+- Validate product data
+- Return typed Product array
+
+---
+
+#### 5. Database Module (`lib/db.ts`)
+
+```
+db.ts
+├── Supabase Client
+│   ├── URL configuration
+│   ├── Anon key auth
+│   └── No session persistence
+└── Type Definitions
+    ├── Query type
+    └── Product type
+```
+
+**Responsibilities**:
+
+- Initialize Supabase client
+- Provide database access
+- Define database types
+- Environment validation
+
+---
