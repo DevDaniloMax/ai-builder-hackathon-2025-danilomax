@@ -79,11 +79,13 @@ export async function fetchPageContent(url: string): Promise<string> {
   }
 
   try {
-    // Use Jina Reader to get clean text content
+    // Use Jina Reader to get clean text content with enhanced options
     const jinaUrl = `https://r.jina.ai/${url}`;
     const response = await fetch(jinaUrl, {
       headers: {
         'Accept': 'text/plain',
+        'X-With-Images-Summary': 'true',
+        'X-With-Links-Summary': 'true',
       },
     });
 
@@ -94,9 +96,9 @@ export async function fetchPageContent(url: string): Promise<string> {
 
     let content = await response.text();
     
-    // Truncate to 12k characters for token efficiency
-    if (content.length > 12000) {
-      content = content.substring(0, 12000);
+    // Truncate to 20k characters for better data capture
+    if (content.length > 20000) {
+      content = content.substring(0, 20000);
     }
 
     // Cache the result
