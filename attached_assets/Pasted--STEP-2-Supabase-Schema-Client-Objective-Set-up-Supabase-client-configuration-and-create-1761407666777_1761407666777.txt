@@ -1,0 +1,213 @@
+## STEP 2 — Supabase Schema + Client
+
+### Objective
+
+Set up Supabase client configuration and create database schema for queries and products.
+
+### Prerequisites
+
+- STEP 0 and STEP 1 completed
+- Supabase project created (at supabase.com)
+- Supabase credentials added to `.env.local`
+
+### Actions
+
+#### 1. Create Supabase client configuration
+
+Create file `lib/db.ts`:
+
+```typescript
+import { createClient } from "@supabase/supabase-js";
+
+// Validate environment variables
+if (!process.env.SUPABASE_URL) {
+  throw new Error("Missing SUPABASE_URL environment variable");
+}
+
+if (!process.env.SUPABASE_ANON_KEY) {
+  throw new Error("Missing SUPABASE_ANON_KEY environment variable");
+}
+
+// Create Supabase client
+export const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: false, // Server-side: no session persistence needed
+    },
+  }
+);
+
+// Type definitions for database tables
+export type Query = {
+  id: string;
+  user_id?: string;
+  query: string;
+  results?: any;
+  latency_ms?: number;
+  error?: string;
+  created_at: string;
+};
+
+export type Product = {
+  id: string;
+  sku?: string;
+  name: string;
+  price?: number;
+  url?: string;
+  image?: string;
+  source?: string;
+  created_at: string;
+};
+```
+
+#### 2. Create database schema file
+
+Create file `supabase.sql` in project root:
+
+```sql
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Table: queries
+-- Stores all user search queries and extracted results
+CREATE TABLE IF NOT EXISTS queries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID,
+  query TEXT NOT NULL,
+  results JSONB,
+  latency_ms INTEGER,
+  error TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for queries table
+CREATE INDEX IF NOT EXISTS idx_queries_created_at
+  ON queries(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_queries_user_id
+  ON queries(user_id)
+  WHERE user_id IS NOT NULL;
+
+-- Table: products
+-- Stores all discovered products for analytics
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sku TEXT,
+  name TEXT NOT NULL,
+  price NUMERIC,
+  url TEXT,
+  image TEXT,
+  source TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for products table
+CREATE INDEX IF NOT EXISTS idx_products_source
+  ON products(source);
+
+CREATE INDEX IF NOT EXISTS idx_products_price
+  ON products(price)
+  WHERE price IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_products_created_at
+  ON products(created_at DESC);
+
+-- Optional: Add Row Level Security (RLS) policies
+-- Uncomment if you want to enable RLS
+
+-- ALTER TABLE queries ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- CREATE POLICY "Allow anonymous inserts" ON queries
+--   FOR INSERT TO anon
+--   WITH CHECK (true);
+
+-- CREATE POLICY "Allow anonymous inserts" ON products
+--   FOR INSERT TO anon
+--   WITH CHECK (true);
+```
+
+#### 3. Execute SQL in Supabase Dashboard
+
+1. Log into Supabase Dashboard (https://app.supabase.com)
+2. Select your project
+3. Go to SQL Editor (left sidebar)
+4. Create new query
+5. Paste contents of `supabase.sql`
+6. Click "Run" to execute
+
+### Validation
+
+- [ ] File `lib/db.ts` exists and compiles
+- [ ] File `supabase.sql` exists
+- [ ] TypeScript compilation succeeds
+- [ ] Tables `queries` and `products` exist in Supabase
+- [ ] Indexes are created successfully
+
+**Validation commands:**
+
+```bash
+# Check files exist
+ls -la lib/db.ts supabase.sql
+
+# Test TypeScript compilation
+npx tsc --noEmit
+
+# Check Supabase connection (requires dev server running)
+# In browser console at http://localhost:3000
+# Run: await fetch('/api/health')
+```
+
+**Database validation** (in Supabase Dashboard):
+
+```sql
+-- Check tables exist
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('queries', 'products');
+
+-- Check indexes exist
+SELECT indexname
+FROM pg_indexes
+WHERE tablename IN ('queries', 'products');
+```
+
+### Troubleshooting
+
+**Problem**: `createClient` import error
+**Solution**: Ensure `@supabase/supabase-js` is installed:
+
+```bash
+npm install @supabase/supabase-js
+```
+
+**Problem**: SQL execution fails with permission error
+**Solution**: Ensure you're using the correct Supabase project and have owner/admin access.
+
+**Problem**: Environment variables undefined
+**Solution**: Restart dev server after adding variables to `.env.local`.
+
+### Expected Outputs
+
+TypeScript compilation should succeed:
+
+```bash
+$ npx tsc --noEmit
+# (no output = success)
+```
+
+Supabase SQL Editor should show:
+
+```
+Success. No rows returned
+```
+
+Database tables visible in Supabase Table Editor:
+
+- `queries` (7 columns)
+- `products` (7 columns)
+
+---
