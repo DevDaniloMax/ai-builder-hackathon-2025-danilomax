@@ -15,7 +15,8 @@
     "ai": "^5.0.78",
     "@ai-sdk/openai": "^2.0.53",
     "@supabase/supabase-js": "^2.48.1",
-    "openai": "^4.77.0"
+    "openai": "^4.77.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
