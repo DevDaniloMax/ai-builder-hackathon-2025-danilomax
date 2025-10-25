@@ -85,14 +85,17 @@ export default function Chat() {
                 textContent = textParts.map((p: any) => p.text).join(' ');
               }
 
-              // Detectar se é um carrossel incompleto (JSON sendo montado)
+              // Detectar se é um carrossel incompleto (JSON sendo montado DURANTE streaming)
               const hasJsonStart = textContent.includes('```json');
               const hasJsonEnd = textContent.includes('```json') && 
                                  textContent.split('```').length >= 3;
               const isIncompleteCarousel = hasJsonStart && !hasJsonEnd;
+              
+              // Se está streaming E carrossel incompleto, não renderizar
+              // Se NÃO está streaming, sempre renderizar (mesmo que incompleto)
+              const shouldHide = isLoading && isIncompleteCarousel;
 
-              // NÃO renderizar se o carrossel ainda está sendo montado
-              if (isIncompleteCarousel) {
+              if (shouldHide) {
                 return null;
               }
 
