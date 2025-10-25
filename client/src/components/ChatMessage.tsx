@@ -87,27 +87,7 @@ export default function ChatMessage({ role, content, timestamp }: ChatMessagePro
         )}
       >
         {productsData ? (
-          <div className="space-y-4">
-            {productsData.textBefore && (
-              <div className={cn(
-                "text-base leading-relaxed whitespace-pre-wrap break-words",
-                "text-card-foreground"
-              )}>
-                {renderContentWithLinks(productsData.textBefore, isUser)}
-              </div>
-            )}
-            
-            <ProductCarousel products={productsData.products} isUser={isUser} />
-            
-            {productsData.textAfter && (
-              <div className={cn(
-                "text-base leading-relaxed whitespace-pre-wrap break-words",
-                "text-card-foreground"
-              )}>
-                {renderContentWithLinks(productsData.textAfter, isUser)}
-              </div>
-            )}
-          </div>
+          <ProductCarousel products={productsData.products} isUser={isUser} />
         ) : (
           <div className={cn(
             "text-base leading-relaxed whitespace-pre-wrap break-words",

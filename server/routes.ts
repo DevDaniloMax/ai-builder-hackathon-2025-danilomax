@@ -29,6 +29,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let userQuery = '';
 
     try{
+      // Delay humanizado de 5-7 segundos para simular tempo de processamento natural
+      const humanDelay = Math.floor(Math.random() * 2000) + 5000; // 5000-7000ms
+      await new Promise(resolve => setTimeout(resolve, humanDelay));
+      
       const modelMessages = convertToModelMessages(messages);
       
       const result = await streamText({
@@ -92,21 +96,20 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 
    📦 FORMATO CARROSSEL (use quando mostrar produtos):
    
-   Texto introdutório amigável
+   IMPORTANTE: Envie APENAS o bloco JSON, SEM texto antes ou depois!
    
-   BLOCO JSON (copie exatamente assim):
    \`\`\`json
    {"products":[{"name":"Nome Produto 1","price":"R$ 199","url":"https://...","site":"Shopee","emoji":"🥇"},{"name":"Nome Produto 2","price":"R$ 249","url":"https://...","site":"Amazon","emoji":"🥈"},{"name":"Nome Produto 3","price":"R$ 299","url":"https://...","site":"Mercado Livre","emoji":"🥉"}]}
    \`\`\`
    
-   Texto final perguntando se quer mais
-   
-   IMPORTANTE: 
-   - Mostre 2-3 produtos de uma vez no carrossel
+   REGRAS CRÍTICAS DO CARROSSEL:
+   - Envie SOMENTE o bloco JSON (sem texto antes ou depois)
+   - Mostre 2-3 produtos de uma vez
    - Formato JSON COMPACTO dentro de \`\`\`json ... \`\`\`
    - Use emojis 🥇🥈🥉 no campo "emoji"
    - Sempre inclua "price", "url", "site", "name", "emoji"
    - Links completos (https://...)
+   - NÃO adicione mensagens como "Achei essas opções" ou "Quer ver mais?" antes ou depois do JSON
 
 6️⃣ SE PRESENCIAL:
    - Pergunte a cidade: "Em qual cidade você está?"
