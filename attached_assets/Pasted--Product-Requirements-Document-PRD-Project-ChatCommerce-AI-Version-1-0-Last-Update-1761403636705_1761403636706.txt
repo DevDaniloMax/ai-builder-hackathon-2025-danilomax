@@ -1,0 +1,610 @@
+# Product Requirements Document (PRD)
+
+## Project: ChatCommerce AI
+
+**Version:** 1.0  
+**Last Updated:** October 2025  
+**Status:** MVP Development
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Context and Motivation](#context-and-motivation)
+3. [MVP Objectives](#mvp-objectives)
+4. [Technical Stack](#technical-stack)
+5. [System Architecture](#system-architecture)
+6. [Conversation Flow](#conversation-flow)
+7. [Data Flow](#data-flow)
+8. [File Structure](#file-structure)
+9. [AI SDK Tools](#ai-sdk-tools)
+10. [Database Schema](#database-schema)
+11. [Functional Requirements](#functional-requirements)
+12. [Non-Functional Requirements](#non-functional-requirements)
+13. [Success Criteria](#success-criteria)
+14. [Future Roadmap](#future-roadmap)
+
+---
+
+## Executive Summary
+
+ChatCommerce AI is a **conversational shopping assistant** that enables users to search for products using natural language. The system leverages AI to interpret user intent, performs real-time web searches, extracts structured product information, and delivers results in a fluid, visual chat interface.
+
+### Core Capabilities
+
+- Natural language product search ("I need 50 hygiene kits under $30 each")
+- Real-time web product discovery via Tavily API
+- Structured product extraction (name, price, image, purchase link)
+- Conversation and query history storage in Supabase
+- Streaming responses using Vercel AI SDK
+
+---
+
+## Context and Motivation
+
+B2C and B2B consumers are overwhelmed by complex e-commerce interfaces. The emerging trend is **Conversational Commerce** — where shopping experiences occur through natural chat interactions.
+
+**ChatCommerce AI** is an MVP demonstrating this paradigm: an interface where users "talk" to a virtual salesperson that intelligently searches for up-to-date products.
+
+### Market Opportunity
+
+- Traditional e-commerce: complex filters, multiple pages, decision fatigue
+- Conversational commerce: natural, personalized, efficient
+- AI-powered: real-time web search, no static catalog limitations
+
+---
+
+## MVP Objectives
+
+1. **Natural Search**: Users describe what they want; the model interprets and queries products from the web
+2. **Structured Responses**: Chat returns products with name, price, image, and purchase link
+3. **Lightweight Persistence**: Log queries and results in Supabase
+4. **Performance & Control**: Everything runs in Next.js + Vercel Edge Functions
+5. **Demo-Ready Pitch**: Fluid, visual, impactful experience for judges
+
+---
+
+## Technical Stack
+
+| Component | Function | Technology |
+|-----------|----------|------------|
+| **Frontend** | Chat UI and message streaming | Next.js 14 + `useChat()` (AI SDK) |
+| **Backend / API** | Tool orchestration and search | Vercel AI SDK (`streamText` + tools) |
+| **AI / NLP** | Product interpretation and extraction | OpenAI GPT-4o-mini |
+| **Web Search** | Product and page retrieval | Tavily API |
+| **Fetch & Parsing** | Clean page text extraction | Jina Reader (`r.jina.ai`) |
+| **Database** | Query history and logs | Supabase (Postgres) |
+| **Deployment** | Hosting and edge runtime | Vercel |
+| **Cache** | Speed improvement | Edge runtime + in-memory Map |
+
+### Version Requirements
+
+- Node.js: >= 18.0.0
+- Next.js: 14.x
+- TypeScript: 5.x
+- Vercel AI SDK: Latest
+- OpenAI API: Compatible with GPT-4o-mini
+
+---
+
+## System Architecture
+
+### High-Level Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph Client
+        A[User Browser]
+        B[Next.js UI<br/>useChat Hook]
+    end
+    
+    subgraph Vercel Edge
+        C[API Route<br/>/api/chat]
+        D[streamText<br/>AI SDK Core]
+    end
+    
+    subgraph AI Tools
+        E[searchWeb<br/>Tool]
+        F[fetchPage<br/>Tool]
+        G[extractProducts<br/>Tool]
+        H[logQuery<br/>Tool]
+    end
+    
+    subgraph External APIs
+        I[Tavily API<br/>Web Search]
+        J[Jina Reader<br/>Content Parser]
+        K[OpenAI API<br/>GPT-4o-mini]
+    end
+    
+    subgraph Database
+        L[(Supabase<br/>Postgres)]
+    end
+    
+    A -->|WebSocket/SSE| B
+    B -->|POST /api/chat| C
+    C -->|orchestrates| D
+    D -->|invokes| E
+    D -->|invokes| F
+    D -->|invokes| G
+    D -->|invokes| H
+    
+    E -->|query| I
+    F -->|fetch URL| J
+    G -->|extract| K
+    H -->|insert| L
+    
+    I -->|URLs| E
+    J -->|clean text| F
+    K -->|JSON products| G
+    L -->|stored| H
+    
+    D -->|stream| C
+    C -->|SSE| B
+    B -->|render| A
+```
+
+### Component Interaction Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as Next.js UI
+    participant API as /api/chat
+    participant Tools as AI Tools
+    participant Tavily as Tavily API
+    participant Jina as Jina Reader
+    participant OpenAI as OpenAI
+    participant DB as Supabase
+    
+    User->>UI: "I need 50 hygiene kits under $30"
+    UI->>API: POST {messages: [...]}
+    API->>Tools: Analyze intent
+    
+    Tools->>Tavily: searchWeb("hygiene kits $30")
+    Tavily-->>Tools: [{url, title, snippet}, ...]
+    
+    loop For each relevant URL
+        Tools->>Jina: fetchPage(url)
+        Jina-->>Tools: Clean text content
+    end
+    
+    Tools->>OpenAI: extractProducts(text)
+    OpenAI-->>Tools: [{name, price, url, image}, ...]
+    
+    Tools->>DB: Insert products
+    Tools->>DB: Log query
+    
+    API-->>UI: Stream response
+    UI-->>User: Display product cards
+```
+
+---
+
+## Conversation Flow
+
+### User Experience Flow
+
+```
+1. User Input
+   "I need 50 hygiene kits under $30 each"
+   
+2. AI Processing
+   └─> searchWeb({ query: "hygiene kits $30 bulk buy" })
+       └─> Tavily returns: [url1, url2, url3, ...]
+   
+3. Content Fetching
+   └─> fetchPage(url1)
+       └─> Jina Reader returns: clean text
+   
+4. Product Extraction
+   └─> extractProducts(rawText)
+       └─> OpenAI returns: [{name, price, url, image}, ...]
+   
+5. Response Generation
+   "I found 3 options:
+   
+   - Basic Hygiene Kit — $29.90 [Buy →]
+   - Economy Kit — $27.50 [Buy →]
+   - Premium Kit — $28.00 [Buy →]"
+   
+6. Persistence
+   └─> Supabase stores query + results
+```
+
+---
+
+## Data Flow
+
+### Request/Response Data Structure
+
+#### 1. User Message Input
+```json
+{
+  "messages": [
+    {
+      "id": "msg_123",
+      "role": "user",
+      "content": "I need 50 hygiene kits under $30 each"
+    }
+  ]
+}
+```
+
+#### 2. Tavily Search Result
+```json
+{
+  "results": [
+    {
+      "title": "Bulk Hygiene Kits - Best Prices",
+      "url": "https://example.com/hygiene-kits",
+      "snippet": "Quality hygiene kits starting at $27.50..."
+    }
+  ]
+}
+```
+
+#### 3. Jina Reader Output
+```
+Plain text content:
+---
+Hygiene Kit - Basic
+Price: $29.90
+Includes: soap, shampoo, toothbrush...
+[Image URL: https://...]
+---
+```
+
+#### 4. Extracted Products
+```json
+[
+  {
+    "name": "Basic Hygiene Kit",
+    "price": 29.90,
+    "url": "https://example.com/product/123",
+    "image": "https://cdn.example.com/img.jpg",
+    "sku": "HK-001",
+    "source": "example.com"
+  }
+]
+```
+
+#### 5. Stored in Database
+```json
+{
+  "id": "uuid-123",
+  "query": "I need 50 hygiene kits under $30 each",
+  "results": [...],
+  "latency_ms": 4320,
+  "created_at": "2025-10-25T10:30:00Z"
+}
+```
+
+---
+
+## File Structure
+
+```
+chatcommerce-ai/
+├── app/
+│   ├── page.tsx                 # Main chat UI component
+│   │                            # - useChat hook integration
+│   │                            # - Message rendering
+│   │                            # - Input form
+│   │
+│   ├── layout.tsx               # Root layout
+│   ├── globals.css              # Global styles
+│   │
+│   └── api/
+│       └── chat/
+│           └── route.ts         # Main API endpoint
+│                                # - streamText configuration
+│                                # - Tool definitions
+│                                # - OpenAI model setup
+│
+├── lib/
+│   ├── web.ts                   # Web search utilities
+│   │                            # - webSearch(): Tavily integration
+│   │                            # - fetchClean(): Jina Reader wrapper
+│   │                            # - In-memory cache
+│   │
+│   ├── extract.ts               # Product extraction
+│   │                            # - extractProducts(): OpenAI LLM call
+│   │                            # - JSON parsing and validation
+│   │
+│   └── db.ts                    # Database client
+│                                # - Supabase client setup
+│                                # - Connection configuration
+│
+├── types/
+│   └── product.ts               # TypeScript type definitions
+│                                # - Product interface
+│                                # - SearchResult interface
+│
+├── .env.local                   # Environment variables
+├── package.json                 # Dependencies
+├── tsconfig.json                # TypeScript config
+├── next.config.js               # Next.js config
+├── supabase.sql                 # Database schema
+└── README.md                    # Setup instructions
+```
+
+---
+
+## AI SDK Tools
+
+### Tool 1: searchWeb
+
+**Purpose**: Search for relevant product URLs using Tavily API
+
+**Parameters**:
+```typescript
+{
+  query: string;        // Search query
+  maxResults?: number;  // Max URLs to return (default: 5)
+}
+```
+
+**Returns**:
+```typescript
+Array<{
+  title: string;
+  url: string;
+  snippet?: string;
+}>
+```
+
+**Implementation Details**:
+- Uses Tavily API search endpoint
+- Basic search depth for speed
+- Results cached in memory
+- Handles API failures gracefully (returns empty array)
+
+---
+
+### Tool 2: fetchPage
+
+**Purpose**: Retrieve clean page content using Jina Reader
+
+**Parameters**:
+```typescript
+{
+  url: string;  // Target URL to fetch
+}
+```
+
+**Returns**:
+```typescript
+string  // Clean text content (max 12k chars)
+```
+
+**Implementation Details**:
+- Proxies through `r.jina.ai/{url}`
+- Removes HTML, scripts, styles
+- Returns plain text suitable for LLM processing
+- Truncated to 12k characters for token efficiency
+- Cached to avoid redundant fetches
+
+---
+
+### Tool 3: extractProducts
+
+**Purpose**: Transform raw text into structured product data
+
+**Parameters**:
+```typescript
+{
+  rawText: string;  // Page content from fetchPage
+}
+```
+
+**Returns**:
+```typescript
+Array<{
+  name: string;
+  price?: number;
+  image?: string;
+  url: string;
+  sku?: string;
+  source?: string;
+}>
+```
+
+**Implementation Details**:
+- Uses OpenAI GPT-4o-mini for extraction
+- Prompt instructs to extract up to 3 products
+- Handles missing fields gracefully
+- Validates JSON output
+- Automatically stores products in database
+
+---
+
+### Tool 4: logQuery
+
+**Purpose**: Persist search queries and results for analytics
+
+**Parameters**:
+```typescript
+{
+  query: string;
+  results: Product[];
+  latency_ms?: number;
+  error?: string;
+}
+```
+
+**Returns**:
+```typescript
+{
+  ok: boolean;
+}
+```
+
+**Implementation Details**:
+- Inserts into Supabase `queries` table
+- Triggered in `onFinish` callback
+- Non-blocking (doesn't fail user request)
+- Captures performance metrics
+
+---
+
+## Database Schema
+
+### Table: queries
+
+Stores all user search queries and results for analytics.
+
+```sql
+CREATE TABLE queries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID,                    -- Optional user identifier
+  query TEXT NOT NULL,             -- Original user query
+  results JSONB,                   -- Extracted products (JSON array)
+  latency_ms INTEGER,              -- Response time in milliseconds
+  error TEXT,                      -- Error message if failed
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_queries_created_at ON queries(created_at DESC);
+CREATE INDEX idx_queries_user_id ON queries(user_id) WHERE user_id IS NOT NULL;
+```
+
+**Sample Row**:
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": null,
+  "query": "waterproof backpacks under $200",
+  "results": [
+    {"name": "Trail Backpack", "price": 189.99, "url": "..."},
+    {"name": "Adventure Pack", "price": 175.00, "url": "..."}
+  ],
+  "latency_ms": 4250,
+  "error": null,
+  "created_at": "2025-10-25T10:30:00Z"
+}
+```
+
+---
+
+### Table: products
+
+Stores all discovered products for future reference and analytics.
+
+```sql
+CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sku TEXT,                        -- Product SKU (if available)
+  name TEXT NOT NULL,              -- Product name
+  price NUMERIC,                   -- Price in currency
+  url TEXT,                        -- Purchase link
+  image TEXT,                      -- Image URL
+  source TEXT,                     -- Domain/source of product
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_products_source ON products(source);
+CREATE INDEX idx_products_price ON products(price) WHERE price IS NOT NULL;
+CREATE INDEX idx_products_created_at ON products(created_at DESC);
+```
+
+**Sample Row**:
+```json
+{
+  "id": "650e8400-e29b-41d4-a716-446655440001",
+  "sku": "BP-001",
+  "name": "Waterproof Trail Backpack",
+  "price": 189.99,
+  "url": "https://store.com/backpack-001",
+  "image": "https://cdn.store.com/bp001.jpg",
+  "source": "store.com",
+  "created_at": "2025-10-25T10:30:00Z"
+}
+```
+
+---
+
+## Functional Requirements
+
+| ID | Description | Priority | Status |
+|----|-------------|----------|--------|
+| RF-01 | Interpret natural language purchase queries | High | Required |
+| RF-02 | Search pages via Tavily API | High | Required |
+| RF-03 | Extract products using LLM + Jina Reader | High | Required |
+| RF-04 | Display structured responses in chat | High | Required |
+| RF-05 | Persist queries in Supabase | Medium | Required |
+| RF-06 | Show product images and clickable links | Medium | Required |
+| RF-07 | Cache recent search results | Low | Optional |
+| RF-08 | Filter by domain and max price | Medium | Future |
+| RF-09 | Support multi-language queries | Low | Future |
+| RF-10 | Handle product comparison requests | Low | Future |
+
+---
+
+## Non-Functional Requirements
+
+| Category | Requirement | Target |
+|----------|-------------|--------|
+| **Performance** | Response time per query | ≤ 5 seconds |
+| **Performance** | Time to first token (streaming) | ≤ 1 second |
+| **Performance** | Cache hit improvement | 10x faster |
+| **Scalability** | Edge functions compatibility | Vercel Edge |
+| **Scalability** | Concurrent requests | 100+ |
+| **Usability** | Chat interface simplicity | Single input field |
+| **Usability** | Mobile responsive | 100% |
+| **Security** | Store only anonymous data | No PII |
+| **Security** | API key protection | Server-side only |
+| **Observability** | Error logging | Supabase + Console |
+| **Observability** | Performance metrics | Latency tracking |
+| **Reliability** | Uptime target | 99.9% |
+| **Reliability** | Graceful API failure handling | Always respond |
+
+---
+
+## Success Criteria
+
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| Average response time | ≤ 5 seconds | Supabase `latency_ms` avg |
+| Relevance of top 3 results | ≥ 80% satisfactory | User feedback / manual review |
+| Stability in 10 consecutive searches | 100% success rate | Integration tests |
+| Streaming experience | Smooth, no lag | Visual inspection |
+| Product extraction accuracy | ≥ 90% fields correct | Sample validation |
+| Cache hit rate | ≥ 50% for common queries | Cache metrics |
+| Zero errors in demo | 100% | Rehearsal tests |
+
+---
+
+## Future Roadmap
+
+### Phase 2: Transactions
+- Simulated checkout with Stripe/Pix
+- Shopping cart functionality
+- Order history
+
+### Phase 3: Authentication
+- User authentication (Supabase Auth)
+- Personalized search history
+- Saved favorites
+
+### Phase 4: Analytics
+- Admin dashboard for search analytics
+- Popular product tracking
+- Conversion metrics
+
+### Phase 5: Advanced AI
+- Custom intent classification model
+- Multi-modal search (image + text)
+- Personalized recommendations
+
+---
+
+## References
+
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai)
+- [Tavily API Documentation](https://tavily.com/docs)
+- [Jina Reader Documentation](https://jina.ai/reader)
+- [Supabase Documentation](https://supabase.com/docs)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
