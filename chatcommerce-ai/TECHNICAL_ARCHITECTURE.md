@@ -475,3 +475,221 @@ VALUES (
 ```
 
 ---
+
+## API Integrations
+
+### 1. Tavily API
+
+**Purpose**: Real-time web search for product discovery
+
+**Endpoint**: `https://api.tavily.com/search`
+
+**Authentication**: API key in request body
+
+**Request Format**:
+
+```json
+{
+  "api_key": "tvly-xxx",
+  "query": "waterproof backpacks under $200",
+  "max_results": 5,
+  "search_depth": "basic",
+  "include_answer": false,
+  "include_raw_content": false
+}
+```
+
+**Response Format**:
+
+```json
+{
+  "results": [
+    {
+      "title": "Page Title",
+      "url": "https://...",
+      "snippet": "Brief excerpt...",
+      "score": 0.95
+    }
+  ],
+  "query": "original query"
+}
+```
+
+**Rate Limits**:
+
+- Free tier: 1,000 requests/month
+- Response time: ~500-2000ms
+
+**Error Handling**:
+
+- 429: Rate limit exceeded → return empty array
+- 401: Invalid API key → log error, return empty array
+- Timeout: 10s → abort and return empty array
+
+---
+
+### 2. Jina Reader API
+
+**Purpose**: Extract clean, readable text from web pages
+
+**Endpoint**: `https://r.jina.ai/{url}`
+
+**Authentication**: None (public service)
+
+**Request Format**:
+
+```
+GET https://r.jina.ai/outdoorgear.com/backpacks
+Headers:
+  User-Agent: Mozilla/5.0 (compatible; ChatCommerceBot/1.0)
+  Accept: text/plain
+```
+
+**Response Format**:
+
+```
+Plain text content of the page, stripped of:
+- HTML tags
+- JavaScript
+- CSS
+- Navigation elements
+- Ads
+```
+
+**Rate Limits**:
+
+- Unknown (public service)
+- Response time: ~1000-3000ms
+
+**Error Handling**:
+
+- 403: Blocked by site → return empty string
+- 404: Page not found → return empty string
+- Timeout: 10s → return empty string
+- Empty response → return empty string
+
+**Optimization**:
+
+- Truncate to 12,000 characters
+- Cache results for 24 hours
+
+---
+
+### 3. OpenAI API
+
+**Purpose**: AI model for intent understanding and product extraction
+
+**Endpoints Used**:
+
+1. `/v1/chat/completions` (via AI SDK)
+
+**Authentication**: Bearer token
+
+**Model**: gpt-4o-mini
+
+**Use Cases**:
+
+#### A. Chat Orchestration (via AI SDK)
+
+- Handled by AI SDK automatically
+- Tool calling enabled
+- Streaming responses
+
+#### B. Product Extraction
+
+**Request Format**:
+
+```json
+{
+  "model": "gpt-4o-mini",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a JSON-only product extractor..."
+    },
+    {
+      "role": "user",
+      "content": "Extract products from: [raw text]"
+    }
+  ],
+  "temperature": 0.3,
+  "max_tokens": 1000
+}
+```
+
+**Response Format**:
+
+```json
+{
+  "choices": [
+    {
+      "message": {
+        "content": "[{\"name\":\"...\",\"price\":...}]"
+      }
+    }
+  ]
+}
+```
+
+**Rate Limits**:
+
+- Tier 1: 3 RPM, 200 RPD
+- Tier 2+: Higher limits
+- Response time: ~1000-4000ms
+
+**Error Handling**:
+
+- 429: Rate limit → retry with exponential backoff
+- 401: Invalid API key → log error, return empty array
+- Timeout: 30s → return empty array
+- Parse error → return empty array
+
+---
+
+### 4. Supabase API
+
+**Purpose**: Database for storing queries and products
+
+**Endpoints**: REST API (auto-generated)
+
+**Authentication**: Anon key (Row Level Security optional)
+
+**Tables**:
+
+#### A. queries
+
+```sql
+POST /rest/v1/queries
+Body: {
+  query: string,
+  results: jsonb,
+  latency_ms: number
+}
+```
+
+#### B. products
+
+```sql
+POST /rest/v1/products
+Body: {
+  name: string,
+  price: number,
+  url: string,
+  image: string,
+  sku: string,
+  source: string
+}
+```
+
+**Rate Limits**:
+
+- Free tier: 50,000 monthly active users
+- Connection pooling: Up to 15 connections
+
+**Error Handling**:
+
+- Connection error → log but don't fail request
+- Insert error → log but continue
+- Non-blocking (queueMicrotask)
+
+---
