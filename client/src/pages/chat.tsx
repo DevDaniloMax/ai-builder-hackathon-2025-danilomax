@@ -85,6 +85,17 @@ export default function Chat() {
                 textContent = textParts.map((p: any) => p.text).join(' ');
               }
 
+              // Detectar se é um carrossel incompleto (JSON sendo montado)
+              const hasJsonStart = textContent.includes('```json');
+              const hasJsonEnd = textContent.includes('```json') && 
+                                 textContent.split('```').length >= 3;
+              const isIncompleteCarousel = hasJsonStart && !hasJsonEnd;
+
+              // NÃO renderizar se o carrossel ainda está sendo montado
+              if (isIncompleteCarousel) {
+                return null;
+              }
+
               return (
                 <div key={message.id} className="space-y-4">
                   {textContent && (
