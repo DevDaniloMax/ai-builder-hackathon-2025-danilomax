@@ -839,3 +839,119 @@ setInterval(() => {
 ```
 
 ---
+
+## Performance Problems
+
+### Problem: Response time consistently > 10 seconds
+
+**Symptoms**:
+
+- Every query takes >10s
+- Timeout errors
+
+**Cause**: Network latency, API issues, or inefficient code
+
+**Solution**:
+
+```typescript
+// 1. Add performance logging
+const start = Date.now();
+
+const searchResults = await webSearch(query);
+console.log(`[Perf] webSearch: ${Date.now() - start}ms`);
+
+const content = await fetchClean(url);
+console.log(`[Perf] fetchClean: ${Date.now() - start}ms`);
+
+const products = await extractProducts(content);
+console.log(`[Perf] extractProducts: ${Date.now() - start}ms`);
+
+// 2. Optimize API calls
+// Run independent calls in parallel
+const [searchResults, cachedData] = await Promise.all([
+  webSearch(query),
+  getCachedData(),
+]);
+
+// 3. Reduce content size
+const trimmed = text.slice(0, 8000); // Reduce from 12k to 8k
+
+// 4. Use faster models
+model: openai("gpt-4o-mini"), // Already fastest
+```
+
+---
+
+### Problem: Cache not improving performance
+
+**Symptoms**:
+
+- Second identical query still slow
+- Cache hit rate: 0%
+
+**Cause**: Cache key mismatch or TTL too short
+
+**Solution**:
+
+```typescript
+// 1. Add cache hit logging
+const cached = getCached<T>(cacheKey);
+if (cached) {
+  console.log(`[Cache HIT] ${cacheKey}`);
+  return cached;
+} else {
+  console.log(`[Cache MISS] ${cacheKey}`);
+}
+
+// 2. Verify cache key consistency
+const cacheKey = `tavily:${query}:${maxResults}`;
+console.log("[Cache] Key:", cacheKey);
+
+// 3. Check TTL
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+console.log("[Cache] TTL:", CACHE_TTL);
+
+// 4. Test cache directly
+CACHE.set("test", { data: "value", timestamp: Date.now() });
+console.log("[Cache] Test:", CACHE.get("test"));
+```
+
+---
+
+### Problem: Vercel function timeout (10s limit)
+
+**Symptoms**:
+
+```
+Error: Function execution timeout
+```
+
+**Cause**: Query taking longer than 10s (Hobby plan limit)
+
+**Solution**:
+
+```typescript
+// 1. Implement faster path
+// - Reduce maxResults
+// - Skip fetchPage for some URLs
+// - Use more aggressive caching
+
+// 2. Set lower timeouts on external APIs
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+await fetch(url, { signal: controller.signal });
+
+// 3. Return partial results
+if (Date.now() - startTime > 8000) {
+  console.warn("[Timeout] Returning partial results");
+  return partialResults;
+}
+
+// 4. Upgrade Vercel plan
+// Hobby: 10s
+// Pro: 60s
+// Enterprise: 900s
+```
+
+---
