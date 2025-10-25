@@ -1,0 +1,129 @@
+## Runtime Errors
+
+### Problem: "Failed to fetch" error in browser
+
+**Symptoms**:
+
+```
+TypeError: Failed to fetch
+```
+
+**Cause**: CORS issue, network problem, or API route not responding
+
+**Solution**:
+
+```bash
+# 1. Check API route is running
+curl http://localhost:3000/api/chat
+
+# 2. Verify fetch URL is correct
+// In client
+console.log('Fetching:', '/api/chat');
+
+# 3. Check browser network tab
+# - Request URL correct?
+# - Response status?
+# - Any CORS errors?
+
+# 4. Test API directly
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"test"}]}'
+```
+
+---
+
+### Problem: Streaming response stops mid-way
+
+**Symptoms**:
+
+- Response starts streaming
+- Stops after few words
+- No error shown
+
+**Cause**: Timeout, error in tool execution, or connection dropped
+
+**Solution**:
+
+```typescript
+// 1. Add error logging
+export async function POST(req: NextRequest) {
+  try {
+    const result = streamText({...});
+    return result.toDataStreamResponse();
+  } catch (error) {
+    console.error('[API] Streaming error:', error);
+    return new Response(JSON.stringify({ error: String(error) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// 2. Add timeout to tools
+const timeout = setTimeout(() => {
+  console.error('[Tool] Timeout exceeded');
+}, 30000);
+
+try {
+  const result = await toolFunction();
+  clearTimeout(timeout);
+  return result;
+} catch (error) {
+  clearTimeout(timeout);
+  throw error;
+}
+
+// 3. Check client error handling
+const { error } = useChat({
+  onError: (error) => {
+    console.error('Chat error:', error);
+    alert('An error occurred: ' + error.message);
+  },
+});
+```
+
+---
+
+### Problem: Memory leak - application crashes after extended use
+
+**Symptoms**:
+
+```
+JavaScript heap out of memory
+FATAL ERROR: Reached heap limit
+```
+
+**Cause**: Cache growing indefinitely
+
+**Solution**:
+
+```typescript
+// Implement cache size limit
+const MAX_CACHE_SIZE = 100;
+
+function setCache<T>(key: string, data: T): void {
+  // Remove oldest if at limit
+  if (CACHE.size >= MAX_CACHE_SIZE) {
+    const firstKey = CACHE.keys().next().value;
+    CACHE.delete(firstKey);
+  }
+
+  CACHE.set(key, {
+    data,
+    timestamp: Date.now(),
+  });
+}
+
+// Add periodic cleanup
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of CACHE.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      CACHE.delete(key);
+    }
+  }
+}, 60000); // Clean every minute
+```
+
+---
