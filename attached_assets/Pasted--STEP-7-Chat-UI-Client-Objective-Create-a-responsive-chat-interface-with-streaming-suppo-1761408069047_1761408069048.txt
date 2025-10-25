@@ -1,3 +1,21 @@
+## STEP 7 — Chat UI (Client)
+
+### Objective
+
+Create a responsive chat interface with streaming support using the AI SDK's `useChat` hook.
+
+### Prerequisites
+
+- STEP 6 completed (API endpoint working)
+- Next.js app router configured
+
+### Actions
+
+#### 1. Create main page component
+
+Replace `app/page.tsx` with:
+
+```typescript
 "use client";
 
 import { useChat } from "ai/react";
@@ -178,3 +196,139 @@ export default function ChatPage() {
     </div>
   );
 }
+```
+
+#### 2. Add minimal global styles
+
+Update `app/globals.css`:
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
+}
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 249, 250, 251;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 17, 24, 39;
+  }
+}
+```
+
+#### 3. Install Tailwind CSS (if not already installed)
+
+```bash
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+
+Update `tailwind.config.js`:
+
+```javascript
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+```
+
+### Validation
+
+- [ ] File `app/page.tsx` exists and compiles
+- [ ] UI renders without errors
+- [ ] Input field accepts text
+- [ ] Messages display correctly
+- [ ] Streaming works in real-time
+- [ ] Auto-scroll works
+
+**Validation commands:**
+
+```bash
+# Check files exist
+ls -la app/page.tsx app/globals.css
+
+# Test TypeScript compilation
+npx tsc --noEmit
+
+# Start dev server
+npm run dev
+
+# Open browser
+open http://localhost:3000
+```
+
+**Manual testing**:
+
+1. Open `http://localhost:3000`
+2. Type a query: "Find me waterproof backpacks under $200"
+3. Click Send
+4. Verify:
+   - Message appears immediately
+   - Assistant response streams in
+   - Links are clickable
+   - Auto-scrolls to bottom
+
+### Troubleshooting
+
+**Problem**: `useChat` hook not found
+**Solution**: Ensure `ai` package installed:
+
+```bash
+npm install ai
+```
+
+**Problem**: Tailwind styles not applied
+**Solution**: Verify `tailwind.config.js` and restart dev server.
+
+**Problem**: Streaming not working
+**Solution**: Check browser network tab for SSE connection. Verify API endpoint returns correct headers.
+
+**Problem**: Links not rendering correctly
+**Solution**: Check markdown-to-HTML regex in code. Use proper markdown format in assistant responses.
+
+### Expected Outputs
+
+Browser should display:
+
+- Clean chat interface
+- Header with app name
+- Message history
+- Input field with placeholder
+- Send button
+
+After sending message:
+
+- User message appears (blue, right-aligned)
+- Loading indicator shows
+- Assistant response streams in word by word
+- Products display with clickable links
+
+---
