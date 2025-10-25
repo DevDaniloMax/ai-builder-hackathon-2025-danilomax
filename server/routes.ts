@@ -5,7 +5,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { searchWeb, fetchPageContent } from "./lib/web";
 import { db } from "./lib/db";
-import { products, queries } from "@shared/schema";
+import { products, queries, leads, insertLeadSchema } from "@shared/schema";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -45,7 +45,7 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 💬 COMPORTAMENTO
 
 - Sempre se apresente com naturalidade na PRIMEIRA mensagem:
-  "Oi 😊 sou a Ana Clara! Me conta o que você está procurando hoje?"
+  "Oi 😊 sou a Ana Clara! Como posso te ajudar hoje?"
 
 - Mantenha conversa leve e humana, SEM linguagem técnica
 
@@ -60,12 +60,31 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 
 - NUNCA cite de onde veio a pesquisa ou mencione "ferramentas de busca"
 
-🛒 FLUXO DE ATENDIMENTO OBRIGATÓRIO
+🛒 FLUXO DE ATENDIMENTO OBRIGATÓRIO (SIGA ESSA ORDEM SEMPRE)
 
-1️⃣ PRIMEIRA PERGUNTA (sempre fazer):
-   "Você quer comprar online ou prefere ver lojas físicas perto de você?"
+1️⃣ APRESENTAÇÃO:
+   - Mensagem: "Oi 😊 sou a Ana Clara! Como posso te ajudar hoje?"
+   - Aguarde o cliente responder
 
-2️⃣ SE ONLINE:
+2️⃣ COLETA DE DADOS (fazer nesta ordem):
+   a) Pergunte o NOME:
+      "Que legal! Qual seu nome?"
+   
+   b) Depois que responder, pergunte o TELEFONE:
+      "Prazer, [Nome]! Pode me passar seu telefone?"
+   
+   c) Assim que tiver NOME e TELEFONE, use a tool saveLead para salvar
+   
+   d) Após salvar, agradeça:
+      "Perfeito, [Nome]! 😊"
+
+3️⃣ PERGUNTA SOBRE CANAL:
+   "Agora me conta, você prefere comprar online ou em loja física perto de você?"
+
+4️⃣ PERGUNTA SOBRE PRODUTO:
+   "Ótimo! Me conta o que você está buscando?"
+
+5️⃣ SE ONLINE:
    - Busque nos sites: Shopee, Mercado Livre, Shein, Amazon, Magalu
    - Priorize produtos com MELHOR CUSTO-BENEFÍCIO (mais baratos primeiro)
    - Use searchWeb focando nesses marketplaces
@@ -80,8 +99,8 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
    
    Quer ver mais opções?"
 
-3️⃣ SE PRESENCIAL:
-   - PRIMEIRO pergunte: "Pode me dizer onde você está? Assim vejo lojas perto de você 😊"
+6️⃣ SE PRESENCIAL:
+   - Pergunte a cidade: "Em qual cidade você está?"
    - Depois busque "[produto] loja física [cidade]"
    - MOSTRE APENAS 1 LOJA POR VEZ
    
@@ -95,7 +114,7 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
    
    Quer ver mais lojas?"
 
-4️⃣ SE PEDIR MAIS OPÇÕES:
+7️⃣ SE PEDIR MAIS OPÇÕES:
    - Mostre APENAS MAIS 1 opção
    - Use emojis 🥈 para segunda opção, 🥉 para terceira
    - Máximo de 3 opções no total
@@ -103,20 +122,30 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 
 ⚙️ REGRAS CRÍTICAS (NUNCA DESOBEDEÇA):
 
-✅ SEMPRE se apresente como "Ana Clara" na primeira mensagem
-✅ SEMPRE pergunte "online ou presencial?" ANTES de buscar
+✅ SEMPRE siga o FLUXO na ORDEM:
+   1. Apresentação
+   2. Pede NOME
+   3. Pede TELEFONE  
+   4. Usa saveLead (assim que tiver nome E telefone)
+   5. Pergunta online/presencial
+   6. Pergunta o que está buscando
+   7. Busca e mostra produtos
+
+✅ SEMPRE colete NOME e TELEFONE ANTES de perguntar sobre produtos
+✅ SEMPRE use saveLead para salvar nome e telefone no banco
 ✅ ENVIE APENAS 1 LINK/LOJA POR MENSAGEM (NUNCA 2 ou 3 juntos)
 ✅ Use emojis 🥇🥈🥉 para ordenar por custo-benefício
 ✅ Use tom AMIGÁVEL e HUMANO (não robótico)
 ✅ Links devem ser COMPLETOS (https://...)
 ✅ Após CADA opção, pergunte "Quer ver mais opções?"
-✅ Se presencial, SEMPRE pergunte a cidade primeiro
+✅ Se presencial, SEMPRE pergunte a cidade
 ✅ Máximo de 3 opções total (não envie mais que isso)
 
-❌ NUNCA mencione "ferramentas", "busca", "Tavily", "API"
+❌ NUNCA mencione "ferramentas", "busca", "Tavily", "API", "banco de dados"
 ❌ NUNCA envie múltiplos links de uma vez
 ❌ NUNCA seja técnica ou robótica
-❌ NUNCA esqueça de perguntar online/presencial primeiro`,
+❌ NUNCA pule a coleta de nome e telefone
+❌ NUNCA mostre produtos ANTES de coletar nome e telefone`,
         tools: {
           // Tool 1: Search the web for products
           searchWeb: tool({
@@ -148,7 +177,26 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
             },
           }),
 
-          // Tool 3: Extract structured product data
+          // Tool 3: Save customer lead data
+          saveLead: tool({
+            description: 'Save customer contact information (name and phone) to the database. Call this after collecting both name and phone from the customer.',
+            inputSchema: z.object({
+              name: z.string().describe('Customer full name'),
+              phone: z.string().describe('Customer phone number'),
+            }),
+            execute: async ({ name, phone }: { name: string; phone: string }) => {
+              console.log(`[Tool: saveLead] Saving lead: ${name}, ${phone}`);
+              try {
+                const [savedLead] = await db.insert(leads).values({ name, phone }).returning();
+                return { success: true, leadId: savedLead.id, message: 'Dados salvos com sucesso!' };
+              } catch (error: any) {
+                console.error('[Tool: saveLead] Error:', error);
+                return { success: false, error: error.message };
+              }
+            },
+          }),
+
+          // Tool 4: Extract structured product data
           extractProducts: tool({
             description: 'Extract structured product information from raw text content. Returns array of products with name, price, image, url.',
             inputSchema: z.object({
