@@ -905,3 +905,53 @@ Format:
 - `done`: Stream complete
 
 ---
+
+## Edge Runtime
+
+### What is Edge Runtime?
+
+Vercel Edge Runtime is a lightweight JavaScript runtime that runs closer to users geographically.
+
+**Key Differences from Node.js**:
+
+- No access to Node.js APIs (fs, path, etc.)
+- No native modules
+- Smaller bundle size limits
+- Lower cold start times
+- Better global distribution
+
+### Why Edge for ChatCommerce AI?
+
+1. **Lower Latency**:
+
+   - Requests handled at nearest edge location
+   - ~50-100ms faster than serverless functions
+
+2. **Better Streaming**:
+
+   - Optimized for SSE/streaming responses
+   - No buffering delays
+
+3. **Cost Efficiency**:
+   - Faster execution = lower costs
+   - Better scalability
+
+### Configuration
+
+```typescript
+// app/api/chat/route.ts
+export const runtime = "edge";
+```
+
+### Limitations and Workarounds
+
+**Limitation**: No Node.js `fs` module
+**Workaround**: Not needed (serverless architecture)
+
+**Limitation**: Some npm packages incompatible
+**Workaround**: Use edge-compatible alternatives or remove runtime config
+
+**Limitation**: 10s timeout (Hobby plan)
+**Workaround**: Optimize tool execution, implement caching
+
+---
