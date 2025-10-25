@@ -362,3 +362,132 @@ curl -X POST https://api.tavily.com/search \
 ```
 
 ---
+
+## Jina Reader Examples
+
+### Example 1: Fetch Product Page
+
+**Request**:
+
+```bash
+curl https://r.jina.ai/outdoorgearlab.com/topics/bags/best-waterproof-backpack \
+  -H "User-Agent: Mozilla/5.0 (compatible; ChatCommerceBot/1.0)" \
+  -H "Accept: text/plain"
+```
+
+**Response**:
+
+```
+OutdoorGearLab - Best Waterproof Backpacks 2025
+
+After months of testing, we've identified the best waterproof backpacks for different uses.
+
+Top Picks:
+
+1. Sea to Summit Big River Dry Bag
+Price: $189.99
+Capacity: 40L
+Rating: 9/10
+
+The Sea to Summit Big River is our top choice for waterproof backpacks.
+It features welded seams, a roll-top closure, and comfortable shoulder straps.
+Fully submersible and comes with a lifetime warranty.
+
+Buy now: https://outdoorgearlab.com/buy/sea-to-summit-big-river
+
+2. Osprey Transporter 40
+Price: $175.00
+Capacity: 40L
+Rating: 8/10
+
+The Osprey Transporter offers excellent organization with internal pockets
+while maintaining waterproof protection. TPU-coated fabric keeps contents dry.
+
+Buy now: https://outdoorgearlab.com/buy/osprey-transporter-40
+
+3. Patagonia Black Hole Pack 32L
+Price: $159.00
+Capacity: 32L
+Rating: 8/10
+
+Durable recycled materials with water-resistant coating. Great for daily use
+and light adventures. Not fully submersible but handles rain well.
+
+Buy now: https://outdoorgearlab.com/buy/patagonia-black-hole-32
+
+Testing Methodology:
+We subjected each backpack to rigorous water immersion tests...
+[Content continues...]
+```
+
+---
+
+### Example 2: Fetch E-commerce Page
+
+**Request**:
+
+```bash
+curl https://r.jina.ai/amazon.com/dp/B08XYEXAMPLE \
+  -H "User-Agent: Mozilla/5.0"
+```
+
+**Response**:
+
+```
+Trail Pro Waterproof Backpack 40L
+
+Current Price: $189.99
+Original Price: $249.99 (24% off)
+Rating: 4.7 out of 5 stars (1,234 ratings)
+
+About this item:
+- 100% waterproof with welded seams
+- 40L capacity perfect for 2-3 day trips
+- Comfortable padded shoulder straps
+- External gear loops and pockets
+- Available in Black, Blue, and Green
+- Lifetime warranty
+
+Product Details:
+Brand: Trail Pro
+Material: TPU-coated nylon
+Dimensions: 22 x 12 x 8 inches
+Weight: 2.5 lbs
+ASIN: B08XYEXAMPLE
+
+Customer Reviews:
+"Perfect for kayaking trips" - 5 stars
+"Very durable and truly waterproof" - 5 stars
+"A bit heavy but worth it" - 4 stars
+
+Frequently Bought Together:
+- Trail Pro Rain Cover ($19.99)
+- Waterproof Phone Pouch ($12.99)
+- Dry Bags Set of 3 ($24.99)
+```
+
+---
+
+### Example 3: Error - Page Not Accessible
+
+**Request**:
+
+```bash
+curl https://r.jina.ai/blocked-site.com/page
+```
+
+**Response**:
+
+```
+Error: Unable to fetch content
+
+The requested page could not be accessed. This may be because:
+- The site blocks automated access
+- The page requires JavaScript to render
+- The URL is invalid or the page doesn't exist
+- The site is temporarily unavailable
+
+Please try a different URL.
+```
+
+---
