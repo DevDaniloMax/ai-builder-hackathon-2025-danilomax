@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselApi } from "@/components/ui/carousel";
-import { ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Product {
@@ -24,6 +24,7 @@ export default function ProductCarousel({ products, isUser = false }: ProductCar
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!api) return;
@@ -38,6 +39,11 @@ export default function ProductCarousel({ products, isUser = false }: ProductCar
     // Marca como pronto após um breve delay para evitar flash
     setTimeout(() => setIsReady(true), 100);
   }, [api]);
+
+  // Resetar erros de imagem quando produtos mudarem
+  useEffect(() => {
+    setImageErrors(new Set());
+  }, [products]);
 
   return (
     <div 
@@ -65,20 +71,25 @@ export default function ProductCarousel({ products, isUser = false }: ProductCar
               >
                 <Card className="p-6 h-full flex flex-col hover-elevate active-elevate-2 transition-all">
                   {/* Imagem do produto */}
-                  {product.image && (
-                    <div className="w-full aspect-square mb-4 rounded-lg overflow-hidden bg-muted">
+                  <div className="w-full aspect-square mb-4 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                    {product.image && !imageErrors.has(index) ? (
                       <img 
                         src={product.image} 
                         alt={product.name}
                         className="w-full h-full object-cover"
                         loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
+                        onError={() => {
+                          setImageErrors(prev => new Set(prev).add(index));
                         }}
                         data-testid={`product-image-${index}`}
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                        <Package className="w-16 h-16" />
+                        <span className="text-xs">Produto</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Cabeçalho com emoji e site */}
                   <div className="flex items-center justify-between mb-4">
