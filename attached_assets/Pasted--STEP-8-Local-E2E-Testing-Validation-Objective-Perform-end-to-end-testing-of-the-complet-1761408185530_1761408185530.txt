@@ -1,0 +1,240 @@
+## STEP 8 — Local E2E Testing + Validation
+
+### Objective
+
+Perform end-to-end testing of the complete application flow and validate all components work together.
+
+### Prerequisites
+
+- STEPS 0-7 completed
+- All environment variables configured with real API keys
+- Dev server running
+
+### Actions
+
+#### 1. Start development server
+
+```bash
+npm run dev
+```
+
+Wait for:
+
+```
+ ✓ Ready in 2.3s
+ ○ Local:   http://localhost:3000
+```
+
+#### 2. Test Case 1: Simple Product Search
+
+**Input**: "Find me waterproof backpacks under $200"
+
+**Expected behavior**:
+
+1. Message appears in chat immediately
+2. System calls `searchWeb` tool
+3. System calls `fetchPage` for top results
+4. System calls `extractProducts` to parse products
+5. Response streams in with 1-3 products
+6. Each product has name and clickable link
+7. Prices shown (if available)
+
+**Validation**:
+
+```bash
+# Check console logs
+# Should show:
+# [Tool:searchWeb] Query: "waterproof backpacks under $200"
+# [Tool:fetchPage] URL: ...
+# [Tool:extractProducts] Processing text...
+# [DB] Stored N products
+# [API] Query logged: N products, XXXXms
+```
+
+#### 3. Test Case 2: Bulk Purchase Query
+
+**Input**: "I need 50 hygiene kits under $30 each"
+
+**Expected behavior**:
+
+1. Understands bulk purchase context
+2. Searches for appropriate bulk options
+3. Returns products suitable for bulk buying
+4. Response mentions bulk availability (if found)
+
+#### 4. Test Case 3: Cache Performance
+
+**Action**: Repeat Test Case 1 immediately
+
+**Expected behavior**:
+
+1. Response is significantly faster (< 2 seconds)
+2. Console shows cache hits:
+
+```
+[webSearch] Cache hit for query: "..."
+[fetchClean] Cache hit for URL: ...
+```
+
+#### 5. Verify Database Storage
+
+Open Supabase Dashboard:
+
+**Check queries table**:
+
+```sql
+SELECT
+  id,
+  query,
+  jsonb_array_length(results) as product_count,
+  latency_ms,
+  created_at
+FROM queries
+ORDER BY created_at DESC
+LIMIT 5;
+```
+
+**Expected**: 2-3 rows with your test queries
+
+**Check products table**:
+
+```sql
+SELECT
+  name,
+  price,
+  source,
+  created_at
+FROM products
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+**Expected**: 3-9 products extracted from searches
+
+#### 6. Performance Validation
+
+Run 5 consecutive searches with different queries:
+
+1. "waterproof backpacks under $200"
+2. "laptop bags with USB charging"
+3. "hiking boots size 10"
+4. "wireless headphones under $100"
+5. "camping tents for 4 people"
+
+**Measure**:
+
+```sql
+SELECT
+  AVG(latency_ms) as avg_latency,
+  MIN(latency_ms) as min_latency,
+  MAX(latency_ms) as max_latency
+FROM queries
+WHERE created_at > NOW() - INTERVAL '10 minutes';
+```
+
+**Target**: Average latency ≤ 5000ms
+
+### Validation
+
+- [ ] All 3 test cases pass
+- [ ] Database records all queries
+- [ ] Products stored correctly
+- [ ] Cache improves performance
+- [ ] Average latency ≤ 5 seconds
+- [ ] No errors in console
+- [ ] No TypeScript errors
+- [ ] UI is responsive
+
+**Validation checklist**:
+
+```bash
+# 1. Check no TypeScript errors
+npx tsc --noEmit
+
+# 2. Check dev server running
+curl -I http://localhost:3000
+
+# 3. Test API endpoint
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"test"}]}'
+
+# 4. Check database connection
+# Run SQL in Supabase Dashboard:
+SELECT COUNT(*) FROM queries;
+SELECT COUNT(*) FROM products;
+```
+
+### Troubleshooting
+
+**Problem**: No products extracted
+**Solution**:
+
+- Check OpenAI API key is valid
+- Verify Tavily returns good URLs
+- Try different search queries
+- Check console logs for errors
+
+**Problem**: Slow responses (> 10s)
+**Solution**:
+
+- Check internet connection
+- Verify API rate limits not hit
+- Try simpler queries
+- Enable edge runtime if not already
+
+**Problem**: Database inserts failing
+**Solution**:
+
+- Verify Supabase credentials
+- Check RLS policies (disable for testing)
+- Test connection:
+
+```typescript
+const { data, error } = await supabase.from("queries").select("count");
+console.log({ data, error });
+```
+
+**Problem**: Stream disconnects
+**Solution**:
+
+- Check browser console for errors
+- Verify API returns SSE headers
+- Test with `curl` to isolate client vs server
+
+### Expected Outputs
+
+**Console logs (complete flow)**:
+
+```
+[Tool:searchWeb] Query: "waterproof backpacks under $200"
+[webSearch] Fetching from Tavily: "waterproof backpacks under $200"
+[webSearch] Found 5 results
+[Tool:fetchPage] URL: https://example.com/backpacks
+[fetchClean] Fetching from Jina: example.com/backpacks
+[fetchClean] Fetched 12000 characters
+[Tool:extractProducts] Processing text...
+[extractProducts] Processing 12000 characters
+[extractProducts] Extracted 3 products
+[DB] Stored 3 products
+[API] Query logged: 3 products, 4520ms
+```
+
+**Browser display**:
+
+```
+User: Find me waterproof backpacks under $200
+
+AI: I found 3 great options for you:
+
+1. **Trail Pro Backpack** - $189.99
+   [View Product →](https://...)
+
+2. **Adventure Pack 40L** - $175.00
+   [View Product →](https://...)
+
+3. **Mountain Explorer Backpack**
+   [View Product →](https://...)
+```
+
+---
