@@ -33,21 +33,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         model: openai('gpt-4o-mini'),
         messages,
         system: 'You are a helpful shopping assistant. Answer questions about products in a friendly way.',
-        // Tools temporarily disabled to debug schema issue
-        /* tools: {
+        tools: {
           // Tool 1: Search the web for products
-          searchWeb: {
+          searchWeb: tool({
             description: 'Search for products on the web using Tavily API. Returns URLs and snippets of relevant product pages.',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'string',
-                  description: 'The search query to find products',
-                },
-              },
-              required: ['query'],
-            },
+            inputSchema: z.object({
+              query: z.string().describe('The search query to find products'),
+            }),
             execute: async ({ query }: { query: string }) => {
               console.log(`[Tool: searchWeb] Query: "${query}"`);
               const results = await searchWeb(query, 5);
@@ -57,45 +49,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 snippet: r.content?.substring(0, 200) || ''
               }));
             },
-          },
+          }),
 
           // Tool 2: Fetch clean page content
-          fetchPage: {
+          fetchPage: tool({
             description: 'Fetch clean text content from a URL using Jina Reader. Returns plain text suitable for analysis.',
-            parameters: {
-              type: 'object',
-              properties: {
-                url: {
-                  type: 'string',
-                  description: 'The URL to fetch content from',
-                },
-              },
-              required: ['url'],
-            },
+            inputSchema: z.object({
+              url: z.string().describe('The URL to fetch content from'),
+            }),
             execute: async ({ url }: { url: string }) => {
               console.log(`[Tool: fetchPage] URL: ${url}`);
               const content = await fetchPageContent(url);
               return content;
             },
-          },
+          }),
 
           // Tool 3: Extract structured product data
-          extractProducts: {
+          extractProducts: tool({
             description: 'Extract structured product information from raw text content. Returns array of products with name, price, image, url.',
-            parameters: {
-              type: 'object',
-              properties: {
-                rawText: {
-                  type: 'string',
-                  description: 'Raw page content to extract products from',
-                },
-                sourceUrl: {
-                  type: 'string',
-                  description: 'Source URL for reference',
-                },
-              },
-              required: ['rawText'],
-            },
+            inputSchema: z.object({
+              rawText: z.string().describe('Raw page content to extract products from'),
+              sourceUrl: z.string().optional().describe('Source URL for reference'),
+            }),
             execute: async ({ rawText, sourceUrl }: { rawText: string; sourceUrl?: string }) => {
               console.log(`[Tool: extractProducts] Processing text (${rawText.length} chars)`);
               
@@ -194,7 +169,7 @@ Source URL: ${sourceUrl || 'unknown'}`;
               }
             },
           }),
-        }, */
+        },
         onFinish: async () => {
           // Log query to database
           const latency = Date.now() - startTime;

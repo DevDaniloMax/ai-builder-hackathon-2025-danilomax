@@ -20,6 +20,78 @@
 
 ---
 
+## AI SDK Tool Schema Issues ⚠️
+
+### Problem: Invalid schema for tool - 'type: "None"' error
+
+**Symptoms**:
+
+```
+Error: Invalid schema for function 'searchWeb': schema must be a JSON Schema of 'type: "object"', got 'type: "None"'.
+```
+
+**Cause**: AI SDK 5+ changed the tool definition format from `parameters` to `inputSchema`
+
+**Solution**:
+
+**❌ Old Format (AI SDK 4):**
+```typescript
+searchWeb: {
+  description: 'Search for products...',
+  parameters: {  // ❌ Deprecated in SDK 5+
+    type: 'object',
+    properties: {
+      query: { type: 'string', description: '...' }
+    },
+    required: ['query']
+  },
+  execute: async ({ query }) => { ... }
+}
+```
+
+**✅ New Format (AI SDK 5+):**
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+searchWeb: tool({  // ✅ Wrap with tool()
+  description: 'Search for products...',
+  inputSchema: z.object({  // ✅ Use inputSchema with Zod
+    query: z.string().describe('The search query')
+  }),
+  execute: async ({ query }) => { ... }
+})
+```
+
+**Key Changes in AI SDK 5+**:
+1. Use `tool()` function wrapper
+2. Replace `parameters` with `inputSchema`
+3. Use Zod schemas instead of JSON Schema (recommended)
+4. Use `.describe()` for parameter descriptions
+
+**Migration Steps**:
+
+```bash
+# 1. Ensure you have the correct packages
+npm install ai @ai-sdk/openai zod
+
+# 2. Update imports
+import { tool } from 'ai';
+import { z } from 'zod';
+
+# 3. Convert all tools to new format
+# 4. Test with curl or Postman
+curl -X POST http://localhost:5000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"search for products"}]}'
+```
+
+**References**:
+- [AI SDK 5 Migration Guide](https://ai-sdk.dev/docs/migration-guides/ai-sdk-5)
+- [Tool Calling Documentation](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling)
+
+---
+
 ## Setup Issues
 
 ### Problem: Node.js version incompatibility
