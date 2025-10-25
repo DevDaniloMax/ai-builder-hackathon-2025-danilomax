@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { streamText, tool, convertToModelMessages } from "ai";
+import { streamText, tool, convertToModelMessages, stepCountIs } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { searchWeb, fetchPageContent } from "./lib/web";
@@ -34,7 +34,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await streamText({
         model: openai('gpt-4o-mini'),
         messages: modelMessages,
-        system: 'You are a helpful shopping assistant. Answer questions about products in a friendly way.',
+        stopWhen: stepCountIs(5),
+        system: `You are a helpful shopping assistant. 
+
+CRITICAL WORKFLOW:
+1. When user asks for products, use searchWeb tool
+2. YOU MUST ALWAYS write a text response after using tools - NEVER stop without responding to the user in plain text
+3. Format your response with product titles and FULL URLs
+
+Example:
+User: "busque fones bluetooth"
+Step 1: Use searchWeb("fones bluetooth") 
+Step 2: RESPOND WITH TEXT like this:
+
+"Encontrei algumas opções de fones bluetooth:
+
+1. Fone Bluetooth - eBay
+   https://www.ebay.com/shop/fone-bluetooth
+
+2. Fone De Ouvido Bluetooth - Amazon
+   https://www.amazon.com/fone-de-ouvido-bluetooth
+
+Qual você gostaria de ver mais detalhes?"
+
+NEVER end without providing a final text response to the user.`,
         tools: {
           // Tool 1: Search the web for products
           searchWeb: tool({
