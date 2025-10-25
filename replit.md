@@ -26,6 +26,15 @@ Preferred communication style: Simple, everyday language.
 
 **Layout Strategy**: Maximum width containers (max-w-4xl for chat, max-w-7xl for headers), responsive grid layouts for product displays (1 column mobile, 2 columns tablet, 3 columns desktop), and a fixed bottom input bar with scrollable message area.
 
+**Product Display**: ProductCarousel component with embla-carousel-react displays products in a visual carousel format. Each product card shows:
+- Product image (aspect-square) with lazy loading, or fallback placeholder (Package icon + "Produto" text) if image fails to load
+- Product name, price, and marketplace site
+- Medal emoji (🥇🥈🥉) for cost-benefit ranking
+- Direct link button to the specific product page
+- Navigation via arrow buttons and position indicators
+- Smooth fade-in animation when carousel is ready
+- Image error state resets when new products arrive to ensure fresh attempts
+
 ### Backend Architecture
 
 **Server Framework**: Express.js with TypeScript running in ESM mode, handling both API routes and serving the Vite-built frontend in production.
@@ -34,8 +43,16 @@ Preferred communication style: Simple, everyday language.
 
 **Tool-Based Architecture**: The AI uses three primary tools:
 - `searchWeb`: Searches for products using Tavily API, returning URLs and snippets
-- `fetchPage`: Retrieves full content from product pages
-- `extractProducts`: Parses product information (name, price, image, URL, SKU) from page content
+- `fetchPage`: Retrieves full content from product pages to extract accurate product details
+- `saveLead`: Saves customer name and phone to the leads database table
+
+**Product Response Format**: Ana Clara returns products in a structured JSON format within code blocks:
+```json
+{"products":[{"name":"Product Name","price":"R$ 199","url":"https://direct-product-link","image":"https://product-image.jpg","site":"Shopee","emoji":"🥇"}]}
+```
+- Links must be DIRECT to the specific product page (not generic search results)
+- Images must be actual product photo URLs from the product page
+- 2-3 products displayed per carousel
 
 **Caching Strategy**: In-memory caching for both search results and page content to reduce external API calls and improve response times.
 
@@ -50,7 +67,9 @@ Preferred communication style: Simple, everyday language.
 **ORM**: Drizzle ORM with both HTTP and WebSocket client configurations, using the neon-serverless adapter for production efficiency.
 
 **Schema Design**:
-- **users**: Basic user authentication (currently using in-memory storage in MemStorage class)
+- **leads**: Customer contact information collected during chat (id, name, phone, createdAt)
+  - Ana Clara always collects name and phone BEFORE showing products
+  - Saved via `saveLead` tool immediately after collection
 - **products**: Extracted product catalog (id, sku, name, price, url, image, source, createdAt)
 - **queries**: Search history and analytics (id, userId, query, results as JSONB, latencyMs, error, createdAt)
 
