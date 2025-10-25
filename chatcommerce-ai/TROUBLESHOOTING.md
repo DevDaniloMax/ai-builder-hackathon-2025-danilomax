@@ -955,3 +955,98 @@ if (Date.now() - startTime > 8000) {
 ```
 
 ---
+
+## UI/UX Issues
+
+### Problem: Messages not auto-scrolling
+
+**Symptoms**:
+
+- New messages appear but view doesn't scroll
+- User must manually scroll down
+
+**Cause**: Scroll ref not updating
+
+**Solution**:
+
+```typescript
+const messagesEndRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  messagesEndRef.current?.scrollIntoView({
+    behavior: "smooth",
+    block: "end",
+  });
+}, [messages]); // Trigger on messages change
+
+return (
+  <div className="messages">
+    {messages.map((m) => (
+      <Message key={m.id} {...m} />
+    ))}
+    <div ref={messagesEndRef} /> {/* Scroll anchor */}
+  </div>
+);
+```
+
+---
+
+### Problem: Markdown links not clickable
+
+**Symptoms**:
+
+- Links display as plain text
+- No clickable anchors
+
+**Cause**: Markdown not being parsed in render
+
+**Solution**:
+
+```typescript
+// Current (in page.tsx)
+dangerouslySetInnerHTML={{
+  __html: message.content
+    .replace(/\n/g, "<br />")
+    .replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline hover:text-blue-600">$1</a>'
+    ),
+}}
+
+// Or use markdown library
+import ReactMarkdown from 'react-markdown';
+
+<ReactMarkdown>{message.content}</ReactMarkdown>
+```
+
+---
+
+### Problem: Loading indicator not showing
+
+**Symptoms**:
+
+- isLoading is true but no visual feedback
+
+**Cause**: Conditional rendering issue
+
+**Solution**:
+
+```typescript
+const { isLoading } = useChat();
+
+{
+  isLoading && (
+    <div className="flex justify-start">
+      <div className="bg-white border rounded-lg px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
+          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
