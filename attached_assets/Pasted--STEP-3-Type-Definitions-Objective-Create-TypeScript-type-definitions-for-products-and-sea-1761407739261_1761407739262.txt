@@ -1,0 +1,169 @@
+## STEP 3 — Type Definitions
+
+### Objective
+
+Create TypeScript type definitions for products and search results to ensure type safety across the application.
+
+### Prerequisites
+
+- STEP 0 completed
+- TypeScript configured in project
+
+### Actions
+
+#### 1. Create product type definition
+
+Create file `types/product.ts`:
+
+```typescript
+/**
+ * Product represents a single product extracted from web search
+ */
+export type Product = {
+  /** Product name */
+  name: string;
+
+  /** Product URL/link */
+  url: string;
+
+  /** Product price in local currency */
+  price?: number;
+
+  /** Product image URL */
+  image?: string;
+
+  /** Product SKU or identifier */
+  sku?: string;
+
+  /** Source domain (e.g., "amazon.com") */
+  source?: string;
+};
+
+/**
+ * SearchResult represents a single search result from Tavily
+ */
+export type SearchResult = {
+  /** Page title */
+  title: string;
+
+  /** Page URL */
+  url: string;
+
+  /** Short excerpt/snippet */
+  snippet?: string;
+
+  /** Relevance score (optional) */
+  score?: number;
+};
+
+/**
+ * Tool execution result for type safety
+ */
+export type ToolResult<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+};
+```
+
+#### 2. Create type validation test
+
+Create file `types/_check.ts` (for validation only, not used in runtime):
+
+```typescript
+import type { Product, SearchResult, ToolResult } from "./product";
+
+// Test Product type
+const validProduct: Product = {
+  name: "Test Product",
+  url: "https://example.com/product",
+  price: 29.99,
+  image: "https://example.com/image.jpg",
+  sku: "TEST-001",
+  source: "example.com",
+};
+
+// Test SearchResult type
+const validSearchResult: SearchResult = {
+  title: "Test Page",
+  url: "https://example.com",
+  snippet: "This is a test snippet",
+};
+
+// Test ToolResult type
+const validToolResult: ToolResult<Product[]> = {
+  success: true,
+  data: [validProduct],
+};
+
+// Minimal valid Product (only required fields)
+const minimalProduct: Product = {
+  name: "Minimal Product",
+  url: "https://example.com",
+};
+
+console.log("Type validation successful");
+```
+
+### Validation
+
+- [ ] File `types/product.ts` exists
+- [ ] File `types/_check.ts` compiles without errors
+- [ ] All type definitions are exported
+- [ ] TypeScript compilation succeeds
+
+**Validation commands:**
+
+```bash
+# Check files exist
+ls -la types/
+
+# Test TypeScript compilation
+npx tsc --noEmit
+
+# Test type imports
+node --input-type=module -e "import('./types/product.js').then(m => console.log(Object.keys(m)))"
+```
+
+### Troubleshooting
+
+**Problem**: TypeScript cannot find type definitions
+**Solution**: Ensure `tsconfig.json` includes the `types` directory:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+**Problem**: Import errors in other files
+**Solution**: Use correct import syntax:
+
+```typescript
+import type { Product } from "@/types/product";
+// OR
+import { Product } from "@/types/product";
+```
+
+### Expected Outputs
+
+TypeScript compilation:
+
+```bash
+$ npx tsc --noEmit
+# (no output = success)
+```
+
+Type checking validation:
+
+```bash
+$ npx tsc --noEmit types/_check.ts
+# (no output = success)
+```
+
+---
