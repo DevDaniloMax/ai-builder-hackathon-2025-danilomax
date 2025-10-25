@@ -1050,3 +1050,50 @@ const { isLoading } = useChat();
 ```
 
 ---
+
+## Common Error Messages
+
+### "Module not found: Can't resolve 'X'"
+
+**Cause**: Missing npm package
+
+**Solution**:
+
+```bash
+npm install X
+```
+
+---
+
+### "Hydration failed because the initial UI does not match"
+
+**Cause**: Server-rendered HTML differs from client
+
+**Solution**:
+
+```typescript
+// Use client-side only rendering
+import dynamic from "next/dynamic";
+
+const ClientOnlyComponent = dynamic(() => import("./Component"), {
+  ssr: false,
+});
+```
+
+---
+
+### "Invalid hook call"
+
+**Cause**: Using hooks outside React component or wrong React version
+
+**Solution**:
+
+```bash
+# Check React version
+npm list react
+
+# Ensure single React instance
+npm dedupe react
+```
+
+---
