@@ -1,0 +1,56 @@
+## System Overview
+
+ChatCommerce AI is a serverless, edge-optimized conversational commerce platform built on Next.js 14 with the App Router. The system uses AI-powered tools to search the web, extract product information, and deliver structured responses through a streaming chat interface.
+
+### High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLIENT LAYER                             │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Next.js React Components (Browser)                      │   │
+│  │  - Chat UI (app/page.tsx)                                │   │
+│  │  - useChat() hook (Vercel AI SDK)                        │   │
+│  │  - Server-Sent Events (SSE) consumer                     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓ HTTPS/SSE
+┌─────────────────────────────────────────────────────────────────┐
+│                      API LAYER (Vercel Edge)                     │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  API Route: /api/chat                                    │   │
+│  │  - streamText() orchestrator                             │   │
+│  │  - Tool routing and execution                            │   │
+│  │  - Response streaming                                    │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                       BUSINESS LOGIC LAYER                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐    │
+│  │  lib/web.ts  │  │lib/extract.ts│  │   lib/db.ts       │    │
+│  │              │  │              │  │                   │    │
+│  │ - webSearch  │  │ - extract    │  │ - Supabase       │    │
+│  │ - fetchClean │  │   Products   │  │   client         │    │
+│  │ - Cache      │  │              │  │                   │    │
+│  └──────────────┘  └──────────────┘  └───────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    EXTERNAL SERVICES LAYER                       │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐    │
+│  │  Tavily API │  │  Jina Reader │  │   OpenAI API       │    │
+│  │             │  │              │  │                    │    │
+│  │  Web Search │  │  Content     │  │  GPT-4o-mini       │    │
+│  │             │  │  Extraction  │  │  Product Parsing   │    │
+│  └─────────────┘  └──────────────┘  └────────────────────┘    │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Supabase (Postgres)                        │    │
+│  │  - queries table                                        │    │
+│  │  - products table                                       │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
