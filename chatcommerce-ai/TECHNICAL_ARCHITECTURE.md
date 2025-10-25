@@ -955,3 +955,90 @@ export const runtime = "edge";
 **Workaround**: Optimize tool execution, implement caching
 
 ---
+
+## Caching Strategy
+
+### In-Memory Cache
+
+**Implementation**:
+
+```typescript
+const CACHE = new Map<string, CacheEntry>();
+
+type CacheEntry<T> = {
+  data: T;
+  timestamp: number;
+};
+```
+
+### Cache Layers
+
+```
+┌────────────────────────────────────────┐
+│  Cache Layer 1: Tavily Search Results  │
+│  TTL: 1 hour                           │
+│  Key: `tavily:${query}:${maxResults}`  │
+│  Hit Rate Target: 60%                  │
+└────────────────────────────────────────┘
+                  ↓
+┌────────────────────────────────────────┐
+│  Cache Layer 2: Jina Page Content      │
+│  TTL: 24 hours                         │
+│  Key: `jina:${url}`                    │
+│  Hit Rate Target: 80%                  │
+└────────────────────────────────────────┘
+```
+
+### Cache Invalidation
+
+**Time-based (TTL)**:
+
+- Search results: 1 hour (products change frequently)
+- Page content: 24 hours (more stable)
+
+**Size-based**:
+
+```typescript
+const MAX_CACHE_SIZE = 100;
+
+if (CACHE.size >= MAX_CACHE_SIZE) {
+  // Evict oldest entry (FIFO)
+  const firstKey = CACHE.keys().next().value;
+  CACHE.delete(firstKey);
+}
+```
+
+### Performance Impact
+
+**Without Cache**:
+
+- Search query: ~4500ms
+- Breakdown:
+  - Tavily: 1500ms
+  - Jina: 2000ms
+  - OpenAI: 1000ms
+
+**With Cache (hit)**:
+
+- Search query: ~1200ms
+- Breakdown:
+  - Tavily: 2ms (cached)
+  - Jina: 2ms (cached)
+  - OpenAI: 1000ms (not cached)
+  - Improvement: ~73% faster
+
+### Future: Distributed Cache
+
+For production at scale, consider:
+
+- **Redis** (Upstash for edge compatibility)
+- **Vercel KV** (native edge KV store)
+- **Cloudflare KV**
+
+Benefits:
+
+- Shared across all edge locations
+- Persistent across deployments
+- Higher hit rates
+
+---
