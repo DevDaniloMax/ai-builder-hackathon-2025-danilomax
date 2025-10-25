@@ -1,0 +1,17 @@
+# ChatCommerce AI - Code Owners
+# These owners will be requested for review when someone opens a PR
+
+# Default owners for everything
+* @DevDaniloMax
+
+# Database schema changes require extra attention
+/supabase.sql @DevDaniloMax
+/lib/db.ts @DevDaniloMax
+
+# API routes and AI integration
+/app/api/ @DevDaniloMax
+/lib/extract.ts @DevDaniloMax
+/lib/web.ts @DevDaniloMax
+
+# Workflow files
+/.github/workflows/ @DevDaniloMax

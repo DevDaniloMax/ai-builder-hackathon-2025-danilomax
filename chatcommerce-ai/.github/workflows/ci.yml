@@ -1,0 +1,72 @@
+name: CI - Build & Type Check
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    name: Build & Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Type check
+        run: npm run type-check || npx tsc --noEmit
+        continue-on-error: false
+      
+      - name: Lint code
+        run: npm run lint || npx next lint
+        continue-on-error: true
+      
+      - name: Build application
+        run: npm run build
+        env:
+          # Mock environment variables for build
+          SUPABASE_URL: https://mock.supabase.co
+          SUPABASE_ANON_KEY: mock_key
+          OPENAI_API_KEY: sk-mock
+          TAVILY_API_KEY: tvly-mock
+          NEXT_PUBLIC_APP_NAME: ChatCommerce AI
+      
+      - name: Check build artifacts
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "❌ Build failed - .next directory not found"
+            exit 1
+          fi
+          echo "✅ Build successful - .next directory created"
+      
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Check for secrets in code
+        run: |
+          if grep -r "sk-proj-" . --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude="*.md"; then
+            echo "⚠️ WARNING: Potential API keys found in code"
+            exit 1
+          fi
+          echo "✅ No exposed secrets detected"
+        continue-on-error: true
