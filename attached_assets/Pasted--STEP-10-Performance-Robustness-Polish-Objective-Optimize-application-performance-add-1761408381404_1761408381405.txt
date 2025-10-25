@@ -1,0 +1,385 @@
+## STEP 10 — Performance & Robustness (Polish)
+
+### Objective
+
+Optimize application performance, add error handling, and improve production reliability.
+
+### Prerequisites
+
+- STEP 9 completed
+- Application deployed to production
+- Performance baseline measured
+
+### Actions
+
+#### 1. Optimize fetchClean character limit
+
+File: `lib/web.ts`
+
+Ensure truncation is efficient:
+
+```typescript
+// Already implemented in STEP 4
+const trimmed = text.slice(0, 12000);
+```
+
+**Verification**: Character limit prevents token overflow in LLM calls.
+
+#### 2. Ensure Edge Runtime optimization
+
+File: `app/api/chat/route.ts`
+
+Verify edge runtime is enabled:
+
+```typescript
+// Already at top of file
+export const runtime = "edge";
+```
+
+**Benefits**:
+
+- Faster cold starts
+- Lower latency
+- Better global distribution
+
+#### 3. Add comprehensive error handling
+
+File: `lib/web.ts`
+
+Add timeout and retry logic:
+
+```typescript
+/**
+ * Fetch with timeout
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeout: number = 10000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+// Update webSearch function
+export async function webSearch(
+  query: string,
+  maxResults: number = 5
+): Promise<SearchResult[]> {
+  // ... existing cache logic ...
+
+  try {
+    const response = await fetchWithTimeout(
+      "https://api.tavily.com/search",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: process.env.TAVILY_API_KEY,
+          query,
+          max_results: maxResults,
+          search_depth: "basic",
+        }),
+      },
+      10000 // 10 second timeout
+    );
+
+    // ... rest of implementation ...
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[webSearch] Timeout");
+    } else {
+      console.error("[webSearch] Error:", error);
+    }
+    return [];
+  }
+}
+```
+
+#### 4. Implement graceful degradation
+
+File: `app/api/chat/route.ts`
+
+Ensure tools handle failures gracefully (already implemented with try-catch and fallbacks).
+
+#### 5. Add rate limiting (optional)
+
+Create file `lib/rate-limit.ts`:
+
+```typescript
+type RateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
+const limits = new Map<string, RateLimitEntry>();
+
+/**
+ * Simple in-memory rate limiter
+ * @param key - Unique identifier (IP, user ID, etc.)
+ * @param limit - Max requests allowed
+ * @param windowMs - Time window in milliseconds
+ */
+export function rateLimit(
+  key: string,
+  limit: number = 10,
+  windowMs: number = 60000
+): boolean {
+  const now = Date.now();
+  const entry = limits.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    limits.set(key, {
+      count: 1,
+      resetAt: now + windowMs,
+    });
+    return true;
+  }
+
+  if (entry.count >= limit) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+```
+
+Update `app/api/chat/route.ts`:
+
+```typescript
+import { rateLimit } from "@/lib/rate-limit";
+
+export async function POST(req: NextRequest) {
+  // Get client IP
+  const ip = req.ip || req.headers.get("x-forwarded-for") || "unknown";
+
+  // Rate limit: 10 requests per minute
+  if (!rateLimit(ip, 10, 60000)) {
+    return new Response("Rate limit exceeded. Please try again later.", {
+      status: 429,
+    });
+  }
+
+  // ... rest of implementation ...
+}
+```
+
+#### 6. Optimize cache expiration
+
+File: `lib/web.ts`
+
+Adjust cache TTL based on content type:
+
+```typescript
+const CACHE_TTL = {
+  search: 60 * 60 * 1000, // 1 hour for search results
+  page: 24 * 60 * 60 * 1000, // 24 hours for page content
+};
+
+// Update getCached function
+function getCached<T>(key: string, ttl: number = CACHE_TTL.search): T | null {
+  const entry = CACHE.get(key) as CacheEntry<T> | undefined;
+  if (!entry) return null;
+
+  const now = Date.now();
+  if (now - entry.timestamp > ttl) {
+    CACHE.delete(key);
+    return null;
+  }
+
+  return entry.data;
+}
+```
+
+#### 7. Add monitoring hooks
+
+File: `app/api/chat/route.ts`
+
+Log performance metrics:
+
+```typescript
+onFinish: async ({ text, toolResults }) => {
+  try {
+    const latency = Date.now() - startTime;
+
+    // Log performance warning if too slow
+    if (latency > 7000) {
+      console.warn(`[Performance] Slow query: ${latency}ms`);
+    }
+
+    // ... existing logging ...
+  } catch (error) {
+    console.error("[API] Error in onFinish:", error);
+  }
+};
+```
+
+### Validation
+
+- [ ] Edge runtime enabled and working
+- [ ] All API calls have timeout protection
+- [ ] Errors handled gracefully (no crashes)
+- [ ] Cache working efficiently
+- [ ] Rate limiting functional (if implemented)
+- [ ] Average latency ≤ 5 seconds
+- [ ] No memory leaks in cache
+
+**Validation commands**:
+
+```bash
+# Test multiple rapid requests (rate limiting)
+for i in {1..15}; do
+  curl -X POST http://localhost:3000/api/chat \
+    -H "Content-Type: application/json" \
+    -d '{"messages":[{"role":"user","content":"test '$i'"}]}' &
+done
+wait
+
+# Monitor memory usage
+# In Node.js console:
+node --expose-gc -e "
+setInterval(() => {
+  global.gc();
+  const usage = process.memoryUsage();
+  console.log('Memory:', Math.round(usage.heapUsed / 1024 / 1024), 'MB');
+}, 5000);
+"
+```
+
+### Troubleshooting
+
+**Problem**: Memory increasing over time
+**Solution**: Implement cache size limit:
+
+```typescript
+const MAX_CACHE_SIZE = 100;
+
+function setCache<T>(key: string, data: T): void {
+  if (CACHE.size >= MAX_CACHE_SIZE) {
+    const firstKey = CACHE.keys().next().value;
+    CACHE.delete(firstKey);
+  }
+  CACHE.set(key, { data, timestamp: Date.now() });
+}
+```
+
+**Problem**: Rate limiting blocking legitimate users
+**Solution**: Adjust limits or use more sophisticated algorithm (token bucket).
+
+**Problem**: Timeouts still occurring
+**Solution**:
+
+- Increase timeout duration
+- Optimize Tavily queries (use more specific keywords)
+- Reduce maxResults parameter
+
+### Expected Outputs
+
+**Performance metrics (Supabase query)**:
+
+```sql
+SELECT
+  AVG(latency_ms) as avg_latency,
+  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latency_ms) as p50_latency,
+  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) as p95_latency,
+  MAX(latency_ms) as max_latency
+FROM queries
+WHERE created_at > NOW() - INTERVAL '1 day';
+```
+
+**Target**:
+
+- Average: ≤ 5000ms
+- P50: ≤ 4000ms
+- P95: ≤ 7000ms
+- Max: ≤ 10000ms
+
+**Console logs**:
+
+```
+[webSearch] Cache hit for query: "..." (2ms)
+[fetchClean] Cache hit for URL: ... (1ms)
+[API] Query logged: 3 products, 850ms
+```
+
+---
+
+## Completion Checklist
+
+### All Steps Completed
+
+- [ ] STEP 0: Repository initialized
+- [ ] STEP 1: Environment configured
+- [ ] STEP 2: Database setup
+- [ ] STEP 3: Types defined
+- [ ] STEP 4: Web search implemented
+- [ ] STEP 5: Product extraction working
+- [ ] STEP 6: API route functional
+- [ ] STEP 7: UI complete
+- [ ] STEP 8: Local testing passed
+- [ ] STEP 9: Deployed to production
+- [ ] STEP 10: Optimizations applied
+
+### Final Validation
+
+```bash
+# 1. Check all files exist
+ls -la app/page.tsx app/api/chat/route.ts lib/*.ts types/*.ts
+
+# 2. Verify no TypeScript errors
+npx tsc --noEmit
+
+# 3. Test locally
+npm run dev
+# Send test queries
+
+# 4. Verify production
+curl https://chatcommerce-ai.vercel.app
+
+# 5. Check database
+# Run in Supabase:
+SELECT COUNT(*) FROM queries;
+SELECT COUNT(*) FROM products;
+```
+
+### Success Criteria
+
+- ✅ Application responds within 5 seconds
+- ✅ Products extracted accurately (90%+ fields correct)
+- ✅ Cache improves performance (10x faster on hits)
+- ✅ Database logging working
+- ✅ Zero errors in production
+- ✅ Mobile responsive
+- ✅ Streaming smooth
+
+---
+
+## Next Steps (Post-Hackathon)
+
+1. **Add Authentication**: Implement Supabase Auth for user accounts
+2. **Shopping Cart**: Create cart functionality with add/remove
+3. **Checkout Flow**: Integrate Stripe or Pix payment
+4. **Admin Dashboard**: Build analytics and monitoring panel
+5. **Advanced Search**: Add filters, price ranges, categories
+6. **Personalization**: Track user preferences and history
+7. **Multi-language**: Support Portuguese, Spanish, English
+8. **Mobile App**: Build React Native version
+
+---
+
+**Document Version**: 1.0
+**Last Updated**: October 2025
+**Maintained By**: Development Team

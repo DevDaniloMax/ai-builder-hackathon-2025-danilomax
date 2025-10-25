@@ -5,6 +5,7 @@ import { z } from "zod";
 import { webSearch, fetchClean } from "@/lib/web";
 import { extractProducts } from "@/lib/extract";
 import { supabase } from "@/lib/db";
+import { rateLimit } from "@/lib/rate-limit";
 import type { Product } from "@/types/product";
 
 // Configure edge runtime for better performance
@@ -16,6 +17,19 @@ export const runtime = "edge";
  */
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
+
+  // Get client IP for rate limiting
+  const ip = req.ip || req.headers.get("x-forwarded-for") || "unknown";
+
+  // Rate limit: 10 requests per minute
+  if (!rateLimit(ip, 10, 60000)) {
+    return new Response("Rate limit exceeded. Please try again later.", {
+      status: 429,
+      headers: {
+        "Retry-After": "60",
+      },
+    });
+  }
 
   try {
     const { messages } = await req.json();
@@ -185,6 +199,11 @@ Example response format:
 
           // Calculate latency
           const latency = Date.now() - startTime;
+
+          // Log performance warning if too slow
+          if (latency > 7000) {
+            console.warn(`[Performance] Slow query: ${latency}ms`);
+          }
 
           // Store query in database
           await supabase.from("queries").insert({

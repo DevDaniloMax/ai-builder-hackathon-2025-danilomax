@@ -2,7 +2,13 @@ import type { SearchResult } from "@/types/product";
 
 // In-memory cache for API responses
 const CACHE = new Map<string, any>();
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+const MAX_CACHE_SIZE = 100;
+
+// Cache TTL configurations
+const CACHE_TTL = {
+  search: 60 * 60 * 1000, // 1 hour for search results
+  page: 24 * 60 * 60 * 1000, // 24 hours for page content
+};
 
 // Cache entry with timestamp
 type CacheEntry<T> = {
@@ -13,12 +19,12 @@ type CacheEntry<T> = {
 /**
  * Get cached data if not expired
  */
-function getCached<T>(key: string): T | null {
+function getCached<T>(key: string, ttl: number = CACHE_TTL.search): T | null {
   const entry = CACHE.get(key) as CacheEntry<T> | undefined;
   if (!entry) return null;
 
   const now = Date.now();
-  if (now - entry.timestamp > CACHE_TTL) {
+  if (now - entry.timestamp > ttl) {
     CACHE.delete(key);
     return null;
   }
@@ -27,13 +33,43 @@ function getCached<T>(key: string): T | null {
 }
 
 /**
- * Set cache with timestamp
+ * Set cache with timestamp and size limit
  */
 function setCache<T>(key: string, data: T): void {
+  // Implement LRU: remove oldest entry if cache is full
+  if (CACHE.size >= MAX_CACHE_SIZE) {
+    const firstKey = CACHE.keys().next().value;
+    CACHE.delete(firstKey);
+  }
+
   CACHE.set(key, {
     data,
     timestamp: Date.now(),
   } as CacheEntry<T>);
+}
+
+/**
+ * Fetch with timeout protection
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeout: number = 10000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
 }
 
 /**
@@ -48,8 +84,8 @@ export async function webSearch(
 ): Promise<SearchResult[]> {
   const cacheKey = `tavily:${query}:${maxResults}`;
 
-  // Check cache first
-  const cached = getCached<SearchResult[]>(cacheKey);
+  // Check cache first with search TTL
+  const cached = getCached<SearchResult[]>(cacheKey, CACHE_TTL.search);
   if (cached) {
     console.log(`[webSearch] Cache hit for query: "${query}"`);
     return cached;
@@ -64,20 +100,24 @@ export async function webSearch(
   }
 
   try {
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetchWithTimeout(
+      "https://api.tavily.com/search",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          api_key: process.env.TAVILY_API_KEY,
+          query,
+          max_results: maxResults,
+          search_depth: "basic",
+          include_answer: false,
+          include_raw_content: false,
+        }),
       },
-      body: JSON.stringify({
-        api_key: process.env.TAVILY_API_KEY,
-        query,
-        max_results: maxResults,
-        search_depth: "basic",
-        include_answer: false,
-        include_raw_content: false,
-      }),
-    });
+      10000 // 10 second timeout
+    );
 
     if (!response.ok) {
       console.error(`[webSearch] Tavily API error: ${response.status}`);
@@ -97,7 +137,11 @@ export async function webSearch(
     console.log(`[webSearch] Found ${results.length} results`);
     return results;
   } catch (error) {
-    console.error("[webSearch] Error:", error);
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[webSearch] Timeout: Request took longer than 10 seconds");
+    } else {
+      console.error("[webSearch] Error:", error);
+    }
     return [];
   }
 }
@@ -110,8 +154,8 @@ export async function webSearch(
 export async function fetchClean(url: string): Promise<string> {
   const cacheKey = `jina:${url}`;
 
-  // Check cache first
-  const cached = getCached<string>(cacheKey);
+  // Check cache first with page TTL (24 hours)
+  const cached = getCached<string>(cacheKey, CACHE_TTL.page);
   if (cached) {
     console.log(`[fetchClean] Cache hit for URL: ${url}`);
     return cached;
@@ -124,14 +168,18 @@ export async function fetchClean(url: string): Promise<string> {
     const cleanUrl = url.replace(/^https?:\/\//, "");
     const jinaUrl = `https://r.jina.ai/${cleanUrl}`;
 
-    const response = await fetch(jinaUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; ChatCommerceBot/1.0)",
-        Accept: "text/plain",
+    const response = await fetchWithTimeout(
+      jinaUrl,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; ChatCommerceBot/1.0)",
+          Accept: "text/plain",
+        },
+        // Disable cache to get fresh content
+        cache: "no-store",
       },
-      // Disable cache to get fresh content
-      cache: "no-store",
-    });
+      10000 // 10 second timeout
+    );
 
     if (!response.ok) {
       console.error(`[fetchClean] Jina Reader error: ${response.status}`);
@@ -149,7 +197,11 @@ export async function fetchClean(url: string): Promise<string> {
     console.log(`[fetchClean] Fetched ${trimmed.length} characters`);
     return trimmed;
   } catch (error) {
-    console.error("[fetchClean] Error:", error);
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[fetchClean] Timeout: Request took longer than 10 seconds");
+    } else {
+      console.error("[fetchClean] Error:", error);
+    }
     return "";
   }
 }
