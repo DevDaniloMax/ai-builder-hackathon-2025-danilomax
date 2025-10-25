@@ -23,7 +23,7 @@ export const products = pgTable("products", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   sku: text("sku"),
   name: text("name").notNull(),
-  price: numeric("price"),
+  price: text("price"),
   url: text("url"),
   image: text("image"),
   source: text("source"),
@@ -82,7 +82,7 @@ export interface SearchResult {
 
 export interface ProductData {
   name: string;
-  price?: number;
+  price?: string;
   image?: string;
   url: string;
   sku?: string;
