@@ -1,0 +1,96 @@
+## Security Considerations
+
+### 1. API Key Protection
+
+**Problem**: API keys must not be exposed to client
+
+**Solution**:
+
+```typescript
+// ✅ CORRECT: Server-side only
+process.env.OPENAI_API_KEY; // Only accessible in API routes
+
+// ❌ WRONG: Client-exposed
+process.env.NEXT_PUBLIC_OPENAI_KEY; // Visible in browser
+```
+
+**Implementation**:
+
+- All API keys in server-side env vars
+- No `NEXT_PUBLIC_` prefix for sensitive keys
+- Keys never sent to client
+
+### 2. Input Validation
+
+**Problem**: Users can send malicious input
+
+**Solution**:
+
+```typescript
+// Zod validation for tool parameters
+parameters: z.object({
+  query: z.string().max(500), // Limit length
+  maxResults: z.number().min(1).max(10), // Bounded range
+});
+```
+
+**Protection Against**:
+
+- SQL injection (using parameterized queries)
+- XSS (React escapes by default)
+- Prompt injection (limited by model safeguards)
+
+### 3. Rate Limiting
+
+**Problem**: Abuse can exhaust API quotas
+
+**Solution**:
+
+```typescript
+// Simple IP-based rate limiting
+if (!rateLimit(ip, 10, 60000)) {
+  // 10 req/min
+  return new Response("Rate limit exceeded", { status: 429 });
+}
+```
+
+**Future Improvements**:
+
+- User-based limiting (after auth)
+- Token bucket algorithm
+- Redis-backed distributed limiting
+
+### 4. Data Privacy
+
+**Current State**: No personal data collected
+
+- No user authentication
+- No cookies (beyond Next.js essentials)
+- Anonymous query logging
+
+**Future** (with auth):
+
+- Implement Row Level Security (RLS) in Supabase
+- Encrypt sensitive user data
+- GDPR compliance (data export/deletion)
+
+### 5. Content Security
+
+**Problem**: Extracted content may contain malicious code
+
+**Solution**:
+
+- React automatically escapes HTML
+- Product URLs are not auto-navigated
+- External links have `rel="noopener noreferrer"`
+
+### 6. API Abuse Prevention
+
+**Measures**:
+
+1. Environment validation (keys exist)
+2. Timeout protection (10s for external APIs)
+3. Error handling (don't leak internal errors)
+4. Logging (monitor for abuse patterns)
+
+---
