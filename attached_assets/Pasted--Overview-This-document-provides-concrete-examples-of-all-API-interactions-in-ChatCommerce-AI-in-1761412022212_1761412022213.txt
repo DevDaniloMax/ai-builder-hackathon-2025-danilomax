@@ -1,0 +1,184 @@
+## Overview
+
+This document provides concrete examples of all API interactions in ChatCommerce AI, including request/response formats, error handling, and common patterns.
+
+---
+
+## Chat API
+
+### Endpoint
+
+```
+POST /api/chat
+```
+
+### Example 1: Simple Product Search
+
+**Request**:
+
+```bash
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": "Find me waterproof backpacks under $200"
+      }
+    ]
+  }'
+```
+
+**Response** (Server-Sent Events stream):
+
+```
+0:{"type":"metadata","id":"chat_abc123"}
+1:"I"
+1:"'ll"
+1:" search"
+1:" for"
+1:" waterproof"
+1:" backpacks"
+1:" under"
+1:" $200"
+1:" for"
+1:" you"
+1:".\n\n"
+2:{"type":"tool_call","toolName":"searchWeb","args":{"query":"waterproof backpacks under $200"}}
+3:{"type":"tool_result","toolName":"searchWeb","result":{"success":true,"results":[...],"count":5}}
+2:{"type":"tool_call","toolName":"fetchPage","args":{"url":"https://example.com/backpacks"}}
+3:{"type":"tool_result","toolName":"fetchPage","result":{"success":true,"content":"...","length":12000}}
+2:{"type":"tool_call","toolName":"extractProducts","args":{"rawText":"..."}}
+3:{"type":"tool_result","toolName":"extractProducts","result":{"success":true,"products":[...],"count":3}}
+1:"I"
+1:" found"
+1:" 3"
+1:" great"
+1:" options"
+1:":\n\n"
+1:"1"
+1:"."
+1:" **"
+1:"Trail"
+1:" Pro"
+1:" Backpack"
+1:"**"
+1:" -"
+1:" $"
+1:"189"
+1:"."
+1:"99"
+1:"\n"
+1:"   "
+1:"["
+1:"View"
+1:" Product"
+1:" →"
+1:"]"
+1:"("
+1:"https"
+1:":"
+1:"//"
+1:"example"
+1:"."
+1:"com"
+1:"/trail-pro"
+1:")"
+1:"\n\n"
+done:{"finishReason":"stop"}
+```
+
+---
+
+### Example 2: Bulk Purchase Query
+
+**Request**:
+
+```bash
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": "I need 50 hygiene kits under $30 each for a community project"
+      }
+    ]
+  }'
+```
+
+**Response** (formatted for readability):
+
+```json
+{
+  "streamedTokens": [
+    "I'll help you find hygiene kits suitable for bulk purchase...",
+    "...",
+    "Here are 3 options:\n\n",
+    "1. **Basic Hygiene Kit** - $29.90\n",
+    "   Includes: soap, shampoo, toothbrush, toothpaste\n",
+    "   [Buy in Bulk →](https://supplier.com/hygiene-kit-basic)\n\n",
+    "2. **Economy Kit** - $27.50\n",
+    "   Perfect for large orders\n",
+    "   [View Details →](https://wholesale.com/economy-kit)\n\n",
+    "3. **Community Care Package** - $28.00\n",
+    "   Designed for community projects\n",
+    "   [Order Now →](https://charity-supplies.com/care-package)"
+  ]
+}
+```
+
+---
+
+### Example 3: Conversation with History
+
+**Request**:
+
+```bash
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [
+      {
+        "role": "user",
+        "content": "Find me laptops under $1000"
+      },
+      {
+        "role": "assistant",
+        "content": "I found 3 laptops:\n1. Dell Inspiron...\n2. HP Pavilion...\n3. Lenovo ThinkPad..."
+      },
+      {
+        "role": "user",
+        "content": "Which one has the best battery life?"
+      }
+    ]
+  }'
+```
+
+**Response**:
+The AI will reference the previously found laptops and provide battery life comparison.
+
+---
+
+### Example 4: Error Handling
+
+**Request** (invalid format):
+
+```bash
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invalid": "format"
+  }'
+```
+
+**Response**:
+
+```
+HTTP/1.1 400 Bad Request
+Content-Type: text/plain
+
+Invalid request: messages array required
+```
+
+---
