@@ -57,15 +57,11 @@ export const insertQuerySchema = createInsertSchema(queries).omit({
 export type InsertQuery = z.infer<typeof insertQuerySchema>;
 export type Query = typeof queries.$inferSelect;
 
-// Leads table (customer contact information with detailed segmentation)
+// Leads table (customer contact information)
 export const leads = pgTable("leads", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
-  city: text("city"),
-  age: text("age"),
-  category: text("category"), // Categoria de interesse: moda, eletrônicos, casa, beleza, livros, esportes
-  specificNeeds: text("specific_needs"), // Detalhes específicos após segmentação
   createdAt: timestamp("created_at").defaultNow(),
 });
 
