@@ -164,6 +164,97 @@
 
 ---
 
+## 🎬 Sistema de Demo
+
+### ⚡ Modo Demo com Produtos Mock
+
+Para apresentações e demos, a Ana Clara possui um sistema de produtos mock que retorna resultados **instantaneamente** (< 1 segundo) com dados reais de vestuário brasileiro.
+
+#### 📦 Categorias de Vestuário (Demo)
+
+| Categoria | Produtos | Exemplo |
+|-----------|----------|---------|
+| 👔 **Camisetas** | 6 produtos | Camiseta Básica Branca, Oversized Preta, etc. |
+| 👗 **Vestidos** | 6 produtos | Vestido Longo Floral, Midi Preto, etc. |
+| 👖 **Calças** | 6 produtos | Calça Jeans Skinny, Cargo Preta, etc. |
+| 👟 **Tênis** | 6 produtos | Nike Air Max, Adidas Ultraboost, etc. |
+| 🧥 **Jaquetas** | 6 produtos | Jaqueta Jeans Azul, Bomber Preta, etc. |
+| 👜 **Bolsas** | 6 produtos | Bolsa Tote Preta, Mochila de Couro, etc. |
+
+**Total**: 36 produtos reais com URLs, imagens e preços de marketplaces brasileiros
+
+#### 🎯 Como Funciona
+
+**Tool getMockProducts**:
+```typescript
+// Usuário clica em "👔 Camisetas" ou digita "camisetas"
+getMockProducts(category: "camisetas")
+// Retorna 6 produtos INSTANTANEAMENTE
+
+// Resposta (< 1s):
+{
+  products: [
+    {
+      name: "Camiseta Básica 100% Algodão Branca",
+      price: "R$ 49,90",
+      url: "https://mercadolivre.com.br/...",
+      image: "https://http2.mlstatic.com/...",
+      site: "Mercado Livre",
+      emoji: "🥇",
+      badges: ["Frete Grátis"]
+    },
+    // ... mais 5 produtos
+  ]
+}
+```
+
+#### ✨ Badges Visuais
+
+Produtos mock incluem badges especiais que aparecem nos cards:
+- 🚚 **Frete Grátis** - Entrega gratuita
+- 📉 **15% OFF** - Desconto aplicado
+- ⭐ **Mais Vendido** - Produto popular
+
+#### 🔄 Modo Híbrido
+
+```
+┌──────────────────────────────────────────────┐
+│ Usuário busca por...                         │
+└──────────────┬───────────────────────────────┘
+               │
+       ┌───────┴───────┐
+       │               │
+       ▼               ▼
+Vestuário?         Outro?
+(camisetas,     (notebook,
+vestidos...)     celular...)
+       │               │
+       ▼               ▼
+getMockProducts   searchWeb
+ (<1 segundo)     (5-7 seg)
+       │               │
+       └───────┬───────┘
+               ▼
+        Carrossel JSON
+```
+
+**Exemplo de Uso**:
+- ✅ "camisetas" → getMockProducts (instantâneo)
+- ✅ "vestido preto" → getMockProducts (instantâneo)
+- ❌ "notebook" → searchWeb (busca real 5-7s)
+
+#### 📁 Arquivo de Dados
+
+Produtos mock armazenados em:
+```
+shared/demo-products.ts
+├── getProductsByCategory(category: string)
+├── searchProducts(term: string)
+└── 36 produtos categorizados
+```
+
+---
+
 ## 🚀 Otimizações Implementadas
 
 ### ⚡ Performance (Redução de 70-85% no uso de tokens)
