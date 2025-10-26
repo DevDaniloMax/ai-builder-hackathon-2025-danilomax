@@ -69,10 +69,43 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
     
     const results = allResults.filter(result => {
       const urlLower = result.url.toLowerCase();
+      
+      // 1. Verificar domínio permitido
       const isAllowedDomain = allowedDomains.some(domain => urlLower.includes(domain));
       
       if (!isAllowedDomain) {
         console.log(`[searchWeb] Rejected (domain not allowed): ${result.url}`);
+        return false;
+      }
+      
+      // 2. Verificar padrão de produto específico (MESMO filtro do fetchPageContent)
+      const hasValidPattern = 
+        urlLower.includes('-i.') ||         // Shopee: produto-i.123.456
+        urlLower.includes('/dp/') ||        // Amazon: /dp/B07G7BTMMK
+        urlLower.includes('/mlb-') ||       // Mercado Livre: /MLB-123456
+        urlLower.includes('/p/') ||         // Magalu: /produto/p/123456
+        urlLower.includes('-p-')            // Shein: produto-p-12345.html
+        ;
+      
+      // 3. Verificar padrões PROIBIDOS (busca/lista/filtro)
+      const hasInvalidPattern = 
+        urlLower.includes('/list/') || 
+        urlLower.includes('lista.') ||       // lista.mercadolivre.com.br
+        urlLower.includes('/search') || 
+        urlLower.includes('/busca') || 
+        urlLower.includes('/s?k=') ||        // Amazon search
+        urlLower.includes('?keyword=') ||
+        urlLower.includes('?s=') || 
+        urlLower.includes('?k=') || 
+        urlLower.includes('/categoria');
+      
+      if (!hasValidPattern) {
+        console.log(`[searchWeb] Rejected (no valid pattern): ${result.url}`);
+        return false;
+      }
+      
+      if (hasInvalidPattern) {
+        console.log(`[searchWeb] Rejected (invalid pattern - search/list): ${result.url}`);
         return false;
       }
       
