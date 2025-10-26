@@ -92,9 +92,8 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
     }
     const allResults = data.results || [];
     
-    // 🚨 VALIDAÇÃO CRÍTICA: Filtrar apenas domínios permitidos
+    // 🚨 VALIDAÇÃO CRÍTICA: Filtrar apenas domínios permitidos (SEM Shopee)
     const allowedDomains = [
-      'shopee.com.br',
       'mercadolivre.com.br', 
       'amazon.com.br',
       'magazineluiza.com.br',
@@ -113,9 +112,8 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
         return false;
       }
       
-      // 2. Verificar padrão de produto específico (MESMO filtro do fetchPageContent)
+      // 2. Verificar padrão de produto específico (SEM Shopee)
       const hasValidPattern = 
-        urlLower.includes('-i.') ||         // Shopee: produto-i.123.456
         urlLower.includes('/dp/') ||        // Amazon: /dp/B07G7BTMMK
         urlLower.includes('/mlb-') ||       // Mercado Livre: /MLB-123456
         urlLower.includes('/p/') ||         // Magalu: /produto/p/123456
@@ -171,8 +169,8 @@ export async function fetchPageContent(url: string): Promise<string> {
   // 🚨 VALIDAÇÃO CRÍTICA: Bloquear URLs inválidas
   const urlLower = url.toLowerCase();
   
-  // 1. Verificar domínio permitido
-  const allowedDomains = ['shopee.com.br', 'mercadolivre.com.br', 'amazon.com.br', 'magazineluiza.com.br', 'magalu.com.br', 'shein.com'];
+  // 1. Verificar domínio permitido (SEM Shopee)
+  const allowedDomains = ['mercadolivre.com.br', 'amazon.com.br', 'magazineluiza.com.br', 'magalu.com.br', 'shein.com'];
   const hasAllowedDomain = allowedDomains.some(domain => urlLower.includes(domain));
   
   if (!hasAllowedDomain) {
@@ -180,9 +178,8 @@ export async function fetchPageContent(url: string): Promise<string> {
     return '';
   }
   
-  // 2. Verificar padrão de produto específico
+  // 2. Verificar padrão de produto específico (SEM Shopee -i.)
   const hasValidPattern = 
-    urlLower.includes('-i.') ||         // Shopee: produto-i.123.456
     urlLower.includes('/dp/') ||        // Amazon: /dp/B07G7BTMMK
     urlLower.includes('/mlb-') ||       // Mercado Livre: /MLB-123456
     urlLower.includes('/p/') ||         // Magalu: /produto/p/123456
