@@ -6,12 +6,12 @@ export interface EmptyStateProps {
 }
 
 const topCategories = [
-  { icon: Shirt, label: "Moda & Vestuário", query: "camiseta básica preta" },
-  { icon: Smartphone, label: "Eletrônicos", query: "fone de ouvido bluetooth" },
-  { icon: HomeIcon, label: "Casa & Decoração", query: "jogo de panelas" },
-  { icon: Heart, label: "Beleza & Saúde", query: "kit cuidados com a pele" },
-  { icon: BookOpen, label: "Livros & Papelaria", query: "caderno universitário" },
-  { icon: Zap, label: "Esportes & Fitness", query: "tênis para corrida" }
+  { icon: Shirt, label: "Moda & Vestuário", query: "Quero comprar roupas" },
+  { icon: Smartphone, label: "Eletrônicos", query: "Quero comprar eletrônicos" },
+  { icon: HomeIcon, label: "Casa & Decoração", query: "Quero comprar para casa" },
+  { icon: Heart, label: "Beleza & Saúde", query: "Quero produtos de beleza" },
+  { icon: BookOpen, label: "Livros & Papelaria", query: "Quero material de papelaria" },
+  { icon: Zap, label: "Esportes & Fitness", query: "Quero produtos de esporte" }
 ];
 
 export default function EmptyState({ onQuerySelect }: EmptyStateProps) {

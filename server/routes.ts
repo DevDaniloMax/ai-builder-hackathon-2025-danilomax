@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { streamText, tool, convertToModelMessages, stepCountIs } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { searchWeb, fetchPageContent } from "./lib/web";
 import { db } from "./lib/db";
 import { products, queries, leads, insertLeadSchema } from "@shared/schema";
@@ -80,12 +81,62 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
    b) Depois que responder, pergunte o TELEFONE:
       "Prazer, [Nome]! Pode me passar seu telefone?"
    
-   c) Assim que tiver NOME e TELEFONE, use a tool saveLead para salvar
+   c) Depois que responder, pergunte a CIDADE:
+      "Legal! De qual cidade você é?"
    
-   d) Após salvar, agradeça e pergunte o produto:
-      "Perfeito, [Nome]! 😊 Me conta o que você está buscando?"
+   d) Depois que responder, pergunte a IDADE:
+      "E qual sua idade?"
+   
+   e) Assim que tiver NOME, TELEFONE, CIDADE e IDADE, use a tool saveLead para salvar
+   
+   f) Após salvar, agradeça e vá para a próxima etapa (segmentação ou busca)
 
-3️⃣ BUSCA DE PRODUTOS ONLINE:
+3️⃣ SEGMENTAÇÃO (quando usuário clica em categoria):
+   
+   📦 Se usuário disse algo genérico como:
+   - "Quero comprar roupas" / "Quero comprar para casa" / "Quero eletrônicos"
+   
+   FAÇA PERGUNTAS DE SEGMENTAÇÃO para refinar a busca:
+   
+   🛍️ MODA & VESTUÁRIO:
+   - "Legal! É pra você ou pra presente?"
+   - "Tá buscando roupa masculina ou feminina?"
+   - "Que tipo? Camiseta, calça, vestido, sapato...?"
+   - "Tem alguma cor preferida?"
+   - "Qual seria o tamanho?"
+   
+   📱 ELETRÔNICOS:
+   - "Que legal! Que tipo de eletrônico você procura?"
+   - "É pra você ou presente?"
+   - "Tem alguma marca preferida?"
+   - "Qual faixa de preço você está pensando?"
+   
+   🏠 CASA & DECORAÇÃO:
+   - "Ótimo! O que você procura pra casa?"
+   - "É pra cozinha, quarto, sala...?"
+   - "Tem algum estilo preferido?"
+   
+   💄 BELEZA & SAÚDE:
+   - "Legal! Que tipo de produto de beleza você quer?"
+   - "É pra cuidados com pele, cabelo, maquiagem...?"
+   - "Tem alguma marca preferida?"
+   
+   📚 LIVROS & PAPELARIA:
+   - "Que legal! Que tipo de material você procura?"
+   - "É pra escola, escritório, hobby...?"
+   
+   ⚡ ESPORTES & FITNESS:
+   - "Ótimo! Que tipo de produto esportivo você quer?"
+   - "Pra que esporte ou atividade?"
+   - "Tem alguma marca preferida?"
+   
+   🚨 IMPORTANTE: 
+   - Faça 2-3 perguntas curtas para refinar
+   - Depois de coletar as preferências, ATUALIZE o saveLead com:
+     * category: "moda" / "eletronicos" / "casa" / "beleza" / "livros" / "esportes"
+     * specificNeeds: "resumo das preferências coletadas"
+   
+4️⃣ BUSCA DE PRODUTOS ONLINE:
    - Busque APENAS nestes sites: Shopee, Mercado Livre, Amazon, Magalu, Shein
    - Use searchWeb com query incluindo o termo do usuário + sites permitidos
    - Exemplo de query: "[termo do usuário] site:shopee.com.br OR site:mercadolivre.com.br OR site:amazon.com.br OR site:magazineluiza.com.br OR site:shein.com"
@@ -232,16 +283,46 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 
           // Tool 2: Save customer lead data
           saveLead: tool({
-            description: 'Save customer contact information (name and phone) to the database. Call this after collecting both name and phone from the customer.',
+            description: 'Save customer contact information and preferences to the database. Call this after collecting name, phone, city, and age. Can be called again to UPDATE with category and specificNeeds after segmentation.',
             inputSchema: z.object({
               name: z.string().describe('Customer full name'),
               phone: z.string().describe('Customer phone number'),
+              city: z.string().optional().describe('Customer city'),
+              age: z.string().optional().describe('Customer age'),
+              category: z.string().optional().describe('Category of interest: moda, eletronicos, casa, beleza, livros, esportes'),
+              specificNeeds: z.string().optional().describe('Specific needs after segmentation questions'),
             }),
-            execute: async ({ name, phone }: { name: string; phone: string }) => {
-              console.log(`[Tool: saveLead] Saving lead: ${name}, ${phone}`);
+            execute: async ({ name, phone, city, age, category, specificNeeds }) => {
+              console.log(`[Tool: saveLead] Saving lead: ${name}, ${phone}, ${city || 'N/A'}, ${age || 'N/A'}, ${category || 'N/A'}`);
               try {
-                const [savedLead] = await db.insert(leads).values({ name, phone }).returning();
-                return { success: true, leadId: savedLead.id, message: 'Dados salvos com sucesso!' };
+                // Check if lead exists (by phone) to update or insert
+                const existingLead = await db.select().from(leads).where(eq(leads.phone, phone)).limit(1);
+                
+                if (existingLead.length > 0) {
+                  // Update existing lead
+                  const [updatedLead] = await db.update(leads)
+                    .set({ 
+                      name,
+                      city: city || existingLead[0].city,
+                      age: age || existingLead[0].age,
+                      category: category || existingLead[0].category,
+                      specificNeeds: specificNeeds || existingLead[0].specificNeeds,
+                    })
+                    .where(eq(leads.phone, phone))
+                    .returning();
+                  return { success: true, leadId: updatedLead.id, message: 'Dados atualizados!' };
+                } else {
+                  // Insert new lead
+                  const [savedLead] = await db.insert(leads).values({ 
+                    name, 
+                    phone, 
+                    city, 
+                    age, 
+                    category, 
+                    specificNeeds 
+                  }).returning();
+                  return { success: true, leadId: savedLead.id, message: 'Dados salvos com sucesso!' };
+                }
               } catch (error: any) {
                 console.error('[Tool: saveLead] Error:', error);
                 return { success: false, error: error.message };
