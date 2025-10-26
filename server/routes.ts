@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { searchWeb, fetchPageContent } from "./lib/web";
 import { db } from "./lib/db";
 import { products, queries, leads, insertLeadSchema } from "@shared/schema";
-import { getProductsByCategory, searchProducts as searchMockProducts } from "@shared/demo-products";
+import { getMockProducts as getMockProductsHelper, searchProducts as searchMockProducts } from "@shared/demo-products";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -309,7 +309,7 @@ NUNCA use formato de texto/lista. SEMPRE JSON em código. Mesmo se usuário pedi
               
               // Check if it's a direct category match
               if (categories.some(cat => categoryLower.includes(cat))) {
-                mockProducts = getProductsByCategory(category);
+                mockProducts = getMockProductsHelper(category);
               } else {
                 // Search across all products
                 mockProducts = searchMockProducts(category);

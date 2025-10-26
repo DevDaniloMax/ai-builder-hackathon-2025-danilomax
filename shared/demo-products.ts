@@ -442,3 +442,11 @@ export function getCategories(): string[] {
     "Bolsas"
   ];
 }
+
+/**
+ * Main function for getMockProducts tool (alias for getProductsByCategory)
+ * This is the function called by the AI tool in server/routes.ts
+ */
+export function getMockProducts(category: string): DemoProduct[] {
+  return getProductsByCategory(category);
+}
