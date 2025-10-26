@@ -234,7 +234,18 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
 ❌ NUNCA busque lojas físicas (apenas produtos online)
 ❌ NUNCA envie links genéricos (sempre link DIRETO do produto específico)
 ❌ NUNCA esqueça de incluir a URL da imagem do produto
-❌ NUNCA JAMAIS ENVIE PRODUTOS COMO LINKS EM TEXTO - SEMPRE CARROSSEL JSON`,
+❌ NUNCA JAMAIS ENVIE PRODUTOS COMO LINKS EM TEXTO - SEMPRE CARROSSEL JSON
+
+🔥 LEMBRETE CRÍTICO (REFORÇO):
+TODA VEZ que você mostrar produtos ao usuário, use EXCLUSIVAMENTE este formato:
+
+Texto amigável (opcional)
+
+\`\`\`json
+{"products":[{"name":"...","price":"R$ XX","url":"...","image":"...","site":"...","emoji":"🥇"}]}
+\`\`\`
+
+NUNCA use formato de texto/lista. SEMPRE JSON em código. Mesmo se usuário pedir "mais opções", "outras alternativas", "produtos diferentes" - SEMPRE JSON.`,
         tools: {
           // Tool 1: Search the web for products
           searchWeb: tool({
