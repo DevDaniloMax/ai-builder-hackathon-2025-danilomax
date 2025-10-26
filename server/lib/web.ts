@@ -16,7 +16,33 @@ const searchCache = new Map<string, TavilySearchResult[]>();
 const pageCache = new Map<string, string>();
 
 /**
- * Search for products using Tavily API
+ * Retry com exponential backoff
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T | null> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isLastAttempt = i === maxRetries - 1;
+      if (isLastAttempt) {
+        console.error(`[retryWithBackoff] Failed after ${maxRetries} attempts:`, error.message);
+        return null;
+      }
+      
+      const delay = baseDelay * Math.pow(2, i); // 1s, 2s, 4s
+      console.log(`[retryWithBackoff] Attempt ${i + 1} failed, retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  return null;
+}
+
+/**
+ * Search for products using Tavily API (com retry)
  */
 export async function searchWeb(query: string, maxResults: number = 5): Promise<TavilySearchResult[]> {
   const cacheKey = `${query}-${maxResults}`;
@@ -33,7 +59,8 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
     return [];
   }
 
-  try {
+  // 🔥 CORREÇÃO 3: Retry com exponential backoff
+  const fetchTavily = async () => {
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
@@ -50,11 +77,19 @@ export async function searchWeb(query: string, maxResults: number = 5): Promise<
     });
 
     if (!response.ok) {
-      console.error('[searchWeb] Tavily API error:', response.status, response.statusText);
-      return [];
+      throw new Error(`Tavily API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: TavilyResponse = await response.json();
+    return response.json();
+  };
+
+  try {
+    const data = await retryWithBackoff<TavilyResponse>(fetchTavily, 3, 1000);
+    
+    if (!data) {
+      console.error('[searchWeb] Failed after retries, returning empty results');
+      return [];
+    }
     const allResults = data.results || [];
     
     // 🚨 VALIDAÇÃO CRÍTICA: Filtrar apenas domínios permitidos
