@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselApi } from "@/components/ui/carousel";
-import { ExternalLink, ChevronLeft, ChevronRight, Package } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, Package, Truck, Percent, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Product {
@@ -12,6 +13,7 @@ export interface Product {
   site?: string;
   image?: string;
   emoji?: string;
+  badges?: string[];
 }
 
 interface ProductCarouselProps {
@@ -69,14 +71,36 @@ export default function ProductCarousel({ products, isUser = false }: ProductCar
                 className="pl-4 basis-full md:basis-1/2 lg:basis-1/3" 
                 data-testid={`carousel-item-${index}`}
               >
-                <Card className="p-6 h-full flex flex-col hover-elevate active-elevate-2 transition-all">
+                <Card className="p-6 h-full flex flex-col hover-elevate active-elevate-2 transition-all relative overflow-hidden">
+                  {/* Badges no canto superior */}
+                  {product.badges && product.badges.length > 0 && (
+                    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                      {product.badges.map((badgeText, badgeIndex) => {
+                        const Icon = badgeText.toLowerCase().includes('frete') ? Truck 
+                                   : badgeText.toLowerCase().includes('desconto') || badgeText.toLowerCase().includes('%') ? Percent
+                                   : TrendingUp;
+                        
+                        return (
+                          <Badge 
+                            key={badgeIndex} 
+                            variant={badgeText.toLowerCase().includes('frete') ? "default" : "secondary"}
+                            className="gap-1 shadow-md backdrop-blur-sm bg-opacity-95"
+                          >
+                            <Icon className="w-3 h-3" />
+                            <span className="text-xs font-semibold">{badgeText}</span>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Imagem do produto */}
-                  <div className="w-full aspect-square mb-4 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                  <div className="w-full aspect-[4/5] mb-4 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                     {product.image && !imageErrors.has(index) ? (
                       <img 
                         src={product.image} 
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         loading="lazy"
                         onError={() => {
                           setImageErrors(prev => new Set(prev).add(index));

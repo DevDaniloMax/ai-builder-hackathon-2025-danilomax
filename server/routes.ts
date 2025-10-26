@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { searchWeb, fetchPageContent } from "./lib/web";
 import { db } from "./lib/db";
 import { products, queries, leads, insertLeadSchema } from "@shared/schema";
+import { getProductsByCategory, searchProducts as searchMockProducts } from "@shared/demo-products";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -109,10 +110,20 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
       "Perfeito, [Nome]! 😊 Me conta o que você está buscando?"
 
 3️⃣ BUSCA DE PRODUTOS ONLINE:
+   
+   🎯 MODO DEMO (PRIORITÁRIO - USE PRIMEIRO):
+   - Se usuário buscar por CATEGORIAS DE VESTUÁRIO, use getMockProducts:
+     • Camisetas, Vestidos, Calças, Tênis, Jaquetas, Bolsas
+   - getMockProducts retorna produtos INSTANTANEAMENTE com dados reais
+   - Exemplo: usuário digita "camisetas" → use getMockProducts(category: "camisetas")
+   - Exemplo: usuário digita "vestido preto" → use getMockProducts(category: "vestido")
+   - getMockProducts já retorna produtos COMPLETOS com name, price, url, image, site, emoji, badges
+   - Basta adicionar os emojis de ranking (🥇🥈🥉) e enviar o JSON
+   
+   🌐 MODO BUSCA REAL (Fallback - se não for vestuário):
    - Busque APENAS nestes sites: Mercado Livre, Amazon, Magalu, Shein
    - Use searchWeb com query incluindo o termo do usuário + sites permitidos
    - Exemplo de query: "[termo do usuário] site:mercadolivre.com.br OR site:amazon.com.br OR site:magazineluiza.com.br OR site:shein.com"
-   - Se usuário pedir "tênis nike", query será: "tênis nike site:mercadolivre.com.br OR site:amazon.com.br..."
    - Priorize produtos com MELHOR CUSTO-BENEFÍCIO (mais baratos primeiro)
    - IGNORE resultados de outros sites (Dafiti, etc)
    - MOSTRE produtos em CARROSSEL (formato JSON)
@@ -279,6 +290,43 @@ NUNCA use formato de texto/lista. SEMPRE JSON em código. Mesmo se usuário pedi
                 console.error('[Tool: saveLead] Error:', error);
                 return { success: false };
               }
+            },
+          }),
+
+          // Tool 3: Get mock products (DEMO MODE - Instant results!)
+          getMockProducts: tool({
+            description: 'Get demo products from mock database. Use this for categories: camisetas, vestidos, calcas, tenis, jaquetas, bolsas. Returns products instantly with real data.',
+            inputSchema: z.object({
+              category: z.string().describe('Product category (camisetas, vestidos, calcas, tenis, jaquetas, bolsas) or search term'),
+            }),
+            execute: async ({ category }: { category: string }) => {
+              console.log(`[Tool: getMockProducts] Category/Search: "${category}"`);
+              
+              const categoryLower = category.toLowerCase();
+              const categories = ['camisetas', 'vestidos', 'calcas', 'calças', 'tenis', 'tênis', 'jaquetas', 'bolsas'];
+              
+              let mockProducts;
+              
+              // Check if it's a direct category match
+              if (categories.some(cat => categoryLower.includes(cat))) {
+                mockProducts = getProductsByCategory(category);
+              } else {
+                // Search across all products
+                mockProducts = searchMockProducts(category);
+              }
+              
+              // Return in the format expected by Ana Clara
+              return {
+                products: mockProducts.map(p => ({
+                  name: p.name,
+                  price: p.price,
+                  url: p.url,
+                  image: p.image,
+                  site: p.site,
+                  emoji: p.emoji,
+                  badges: p.badges || []
+                }))
+              };
             },
           }),
 
