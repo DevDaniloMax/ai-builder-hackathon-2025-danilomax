@@ -86,27 +86,70 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
       "Perfeito, [Nome]! 😊 Me conta o que você está buscando?"
 
 3️⃣ BUSCA DE PRODUTOS ONLINE:
-   - Busque nos sites: Shopee, Mercado Livre, Shein, Amazon, Magalu
+   - Busque APENAS nestes sites: Shopee, Mercado Livre, Amazon, Magalu, Shein
+   - Use searchWeb com query incluindo o termo do usuário + sites permitidos
+   - Exemplo de query: "[termo do usuário] site:shopee.com.br OR site:mercadolivre.com.br OR site:amazon.com.br OR site:magazineluiza.com.br OR site:shein.com"
+   - Se usuário pedir "tênis nike", query será: "tênis nike site:shopee.com.br OR site:mercadolivre.com.br..."
    - Priorize produtos com MELHOR CUSTO-BENEFÍCIO (mais baratos primeiro)
-   - Use searchWeb focando nesses marketplaces
+   - IGNORE resultados de outros sites (Dafiti, etc)
    - MOSTRE produtos em CARROSSEL (formato JSON)
 
-   🔍 PROCESSO PARA BUSCAR PRODUTOS:
+   🔍 PROCESSO PARA BUSCAR PRODUTOS (VALIDAÇÃO RIGOROSA):
    
-   ✅ URLs CORRETOS de produtos específicos:
-   - Amazon: contém /dp/ no caminho (ex: amazon.com.br/Nike/dp/B07G7BTMMK)
-   - Mercado Livre: contém /MLB- no caminho (ex: mercadolivre.com.br/MLB-1234567890)
-   - Shopee: contém -i. no caminho (ex: shopee.com.br/produto-i.123456789)
+   ⚠️ VALIDAÇÃO CRÍTICA DE URLs - VERIFIQUE ANTES DE USAR fetchPage:
    
-   ❌ URLs ERRADOS (NÃO USE):
-   - URLs com "lista", "busca", "search" no caminho
-   - URLs com parâmetros ?s= ou ?k=
+   ✅ URLs VÁLIDOS (produtos específicos):
+   - Shopee: DEVE conter "-i." no caminho
+     Exemplo CORRETO: shopee.com.br/Tenis-Nike-i.123456.789
+     Exemplo ERRADO: shopee.com.br/list/Tênis ou shopee.com.br/search?keyword=
+   
+   - Amazon: DEVE conter "/dp/" no caminho
+     Exemplo CORRETO: amazon.com.br/Nike-Air/dp/B07G7BTMMK
+     Exemplo ERRADO: amazon.com.br/s?k=tenis
+   
+   - Mercado Livre: DEVE conter "/MLB-" no caminho
+     Exemplo CORRETO: mercadolivre.com.br/tenis-nike-MLB-123456
+     Exemplo ERRADO: mercadolivre.com.br/lista/tenis
+   
+   - Magalu: DEVE conter "/p/" no caminho
+     Exemplo CORRETO: magazineluiza.com.br/smartphone/p/123456
+     Exemplo ERRADO: magazineluiza.com.br/busca/smartphone
+   
+   - Shein: DEVE conter "-p-" no caminho
+     Exemplo CORRETO: br.shein.com/produto-p-12345.html
+     Exemplo ERRADO: br.shein.com/list/roupas
+   
+   ❌ URLs INVÁLIDOS (NUNCA USE fetchPage com estes):
+   - URLs contendo "/list/", "/search", "/busca", "/categoria"
+   - URLs com parâmetros ?keyword=, ?s=, ?k=, ?q=
+   - URLs genéricas de categoria ou filtro
+   
+   🚨 REGRA ABSOLUTA - VALIDAÇÃO OBRIGATÓRIA:
+   1. ANTES de chamar fetchPage, VERIFIQUE se a URL é de produto específico
+   2. VERIFIQUE se a URL contém um dos padrões válidos:
+      - "-i." (Shopee)
+      - "/dp/" (Amazon)
+      - "/MLB-" (Mercado Livre)
+      - "/p/" (Magalu)
+      - "-p-" (Shein)
+   3. VERIFIQUE se a URL NÃO contém padrões inválidos: "/list/", "/search", "/busca", "?keyword=", "?s=", "?k=", "/_Branco/", "/categoria"
+   4. Se URL NÃO passar na validação, DESCARTE-A
+   5. Se searchWeb retornar APENAS URLs inválidas, busque novamente com termo mais específico
+   6. NUNCA use fetchPage em URLs de sites que não sejam: Shopee, Mercado Livre, Amazon, Magalu, Shein
+   7. Se não encontrar nenhuma URL válida após 2 tentativas, informe ao usuário que não encontrou produtos nesses marketplaces
    
    📋 FLUXO OBRIGATÓRIO:
    
    1️⃣ Use searchWeb para encontrar produtos
-   2️⃣ Escolha 2-3 URLs de produtos específicos (não listas)
-   3️⃣ Para CADA URL:
+   2️⃣ FILTRE os resultados: mantenha APENAS URLs válidas contendo um dos padrões:
+      - "-i." (Shopee)
+      - "/dp/" (Amazon)
+      - "/MLB-" (Mercado Livre)
+      - "/p/" (Magalu)
+      - "-p-" (Shein)
+   3️⃣ Se todas URLs forem inválidas, busque novamente
+   4️⃣ Escolha 2-3 URLs VÁLIDAS de produtos específicos
+   5️⃣ Para CADA URL VÁLIDA:
       a) Use fetchPage para pegar o conteúdo
       b) Use extractProducts passando o texto
       c) extractProducts retorna: { products: [ {name, price, image, url, source} ] }
@@ -232,17 +275,30 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
                 // Use OpenAI to extract structured product data
                 const extractionPrompt = `Você é especialista em extrair dados de produtos de páginas da web brasileiras.
 
-INSTRUÇÕES CRÍTICAS:
-- Extraia até 3 produtos do texto fornecido
-- SEMPRE procure URLs de imagens no texto
-- Preços devem seguir formato PADRONIZADO: "R$ XX,XX" (COM espaço depois de R$)
-- Se preço aparecer como "R$99,90", converta para "R$ 99,90"
+INSTRUÇÕES CRÍTICAS (LEIA COM ATENÇÃO):
+
+🚨 REGRAS OBRIGATÓRIAS:
+1. Extraia até 3 produtos do texto fornecido
+2. CADA PRODUTO DEVE TER: name, price, image, url
+3. Se NÃO encontrar PREÇO ou IMAGEM, NÃO retorne o produto
+4. Retorne APENAS produtos COMPLETOS com TODOS os campos
+
+💰 PREÇO (OBRIGATÓRIO):
+- Formato PADRONIZADO: "R$ XX,XX" (COM espaço depois de R$)
+- Se encontrar "R$99,90", converta para "R$ 99,90"
+- Se encontrar "R$ 99", está OK (pode ser inteiro)
 - Preço é string, NÃO número
-- Se não encontrar imagem explícita, procure por padrões:
-  * URLs contendo: susercontent.com (Shopee)
-  * URLs contendo: mlstatic.com (Mercado Livre)
-  * URLs contendo: media-amazon.com (Amazon)
-  * URLs terminando em: .jpg, .png, .webp
+- Busque no texto por: "R$", "preço", "valor", "por", "de", números seguidos de vírgula
+
+🖼️ IMAGEM (OBRIGATÓRIA):
+- Procure URLs de imagem NO TEXTO COMPLETO
+- Padrões de URLs válidas:
+  * Shopee: contém "susercontent.com" ou "down-br.img.susercontent.com"
+  * Mercado Livre: contém "mlstatic.com" ou "http2.mlstatic.com"
+  * Amazon: contém "media-amazon.com" ou "images-na.ssl-images-amazon.com"
+  * Magalu: contém "magazineluiza.com" ou "magazineluizaImages"
+  * Terminam em: .jpg, .jpeg, .png, .webp
+- Busque por padrões: "https://", "http://", "img", "image", "foto"
 
 FORMATO DE RETORNO (JSON válido):
 {
@@ -257,17 +313,17 @@ FORMATO DE RETORNO (JSON válido):
   ]
 }
 
-IMPORTANTE:
-- Campo "image" é OBRIGATÓRIO - sempre procure no texto
-- Campo "price" deve ser string com formato "R$ XX,XX" (COM espaço após R$)
-- Se encontrar "R$99,90", converta para "R$ 99,90" 
-- Se encontrar "R$ 99", mantenha como "R$ 99"
-- NUNCA arredonde valores - mantenha centavos exatos
-- Se não encontrar imagem, use string vazia "" mas não omita o campo
-- Retorne APENAS o JSON, sem texto adicional
+⚠️ VALIDAÇÃO FINAL:
+- SE não encontrar preço VÁLIDO (com "R$"), NÃO retorne o produto
+- SE não encontrar URL de imagem VÁLIDA, NÃO retorne o produto
+- APENAS retorne produtos que tenham AMBOS: preço E imagem
+- É MELHOR retornar 1 produto COMPLETO do que 3 produtos INCOMPLETOS
+- Campo "image" NUNCA pode ser string vazia "" - deve ter URL válida
+- Campo "price" NUNCA pode ser vazio - deve ter formato "R$ XX,XX"
+- Retorne APENAS o JSON, sem texto adicional antes ou depois
 
-TEXTO PARA ANÁLISE:
-${rawText.substring(0, 12000)}
+TEXTO PARA ANÁLISE (30k chars max):
+${rawText.substring(0, 30000)}
 
 URL DE ORIGEM: ${sourceUrl || 'unknown'}`;
 
@@ -305,10 +361,34 @@ URL DE ORIGEM: ${sourceUrl || 'unknown'}`;
                 }
 
                 const productsData = parsedData.products || [];
-                extractedProducts.push(...productsData);
+                
+                // 🚨 VALIDAÇÃO CRÍTICA: Filtrar produtos incompletos
+                const validProducts = productsData.filter((product: any) => {
+                  const hasValidPrice = product.price && product.price.includes('R$');
+                  const hasValidImage = product.image && product.image.trim() !== '';
+                  const hasValidUrl = product.url && product.url.trim() !== '';
+                  const hasValidName = product.name && product.name.trim() !== '';
+                  
+                  if (!hasValidPrice) {
+                    console.log(`[extractProducts] Produto rejeitado (sem preço válido): ${product.name}`);
+                    return false;
+                  }
+                  if (!hasValidImage) {
+                    console.log(`[extractProducts] Produto rejeitado (sem imagem válida): ${product.name}`);
+                    return false;
+                  }
+                  if (!hasValidUrl || !hasValidName) {
+                    console.log(`[extractProducts] Produto rejeitado (sem URL/nome): ${product.name}`);
+                    return false;
+                  }
+                  
+                  return true;
+                });
+                
+                extractedProducts.push(...validProducts);
 
                 // Store products in database
-                for (const product of productsData) {
+                for (const product of validProducts) {
                   try {
                     await db.insert(products).values({
                       name: product.name,
@@ -323,8 +403,8 @@ URL DE ORIGEM: ${sourceUrl || 'unknown'}`;
                   }
                 }
 
-                console.log(`[Tool: extractProducts] Extracted ${productsData.length} products`);
-                return { products: productsData };
+                console.log(`[Tool: extractProducts] Extracted ${validProducts.length} valid products (${productsData.length - validProducts.length} rejected)`);
+                return { products: validProducts };
               } catch (error) {
                 console.error('[Tool: extractProducts] Error:', error);
                 return { products: [] };
