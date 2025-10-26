@@ -138,7 +138,7 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
    6. NUNCA use fetchPage em URLs de sites que não sejam: Shopee, Mercado Livre, Amazon, Magalu, Shein
    7. Se não encontrar nenhuma URL válida após 2 tentativas, informe ao usuário que não encontrou produtos nesses marketplaces
    
-   📋 FLUXO OBRIGATÓRIO:
+   📋 FLUXO OBRIGATÓRIO (SIGA EXATAMENTE):
    
    1️⃣ Use searchWeb para encontrar produtos
    2️⃣ FILTRE os resultados: mantenha APENAS URLs válidas contendo um dos padrões:
@@ -150,12 +150,13 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
    3️⃣ Se todas URLs forem inválidas, busque novamente
    4️⃣ Escolha 2-3 URLs VÁLIDAS de produtos específicos
    5️⃣ Para CADA URL VÁLIDA:
-      a) Use fetchPage para pegar o conteúdo
-      b) Use extractProducts passando o texto
-      c) extractProducts retorna: { products: [ {name, price, image, url, source} ] }
-   4️⃣ JUNTE todos os produtos retornados pelos extractProducts em um array único
-   5️⃣ ADICIONE os campos "site" e "emoji" (🥇🥈🥉 do mais barato ao mais caro)
-   6️⃣ ENVIE o JSON final NO CHAT:
+      a) Chame: extractProducts(rawText="", sourceUrl="https://url-do-produto")
+         🚨 IMPORTANTE: Passe rawText VAZIO ("") e apenas a sourceUrl
+         🚨 O extractProducts vai buscar E extrair automaticamente!
+      b) extractProducts retorna: { products: [ {name, price, image, url, source} ] }
+   6️⃣ JUNTE todos os produtos retornados pelos extractProducts em um array único
+   7️⃣ ADICIONE os campos "site" e "emoji" (🥇🥈🥉 do mais barato ao mais caro)
+   8️⃣ ENVIE o JSON final NO CHAT:
    
    \`\`\`json
    {"products":[{"name":"Nome","price":"R$ XX","url":"https://...","image":"https://...","site":"Shopee","emoji":"🥇"}]}
@@ -229,20 +230,7 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
             },
           }),
 
-          // Tool 2: Fetch clean page content
-          fetchPage: tool({
-            description: 'Fetch clean text content from a URL using Jina Reader. Returns plain text suitable for analysis.',
-            inputSchema: z.object({
-              url: z.string().describe('The URL to fetch content from'),
-            }),
-            execute: async ({ url }: { url: string }) => {
-              console.log(`[Tool: fetchPage] URL: ${url}`);
-              const content = await fetchPageContent(url);
-              return content;
-            },
-          }),
-
-          // Tool 3: Save customer lead data
+          // Tool 2: Save customer lead data
           saveLead: tool({
             description: 'Save customer contact information (name and phone) to the database. Call this after collecting both name and phone from the customer.',
             inputSchema: z.object({
@@ -269,7 +257,19 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
               sourceUrl: z.string().optional().describe('Source URL for reference'),
             }),
             execute: async ({ rawText, sourceUrl }: { rawText: string; sourceUrl?: string }) => {
-              console.log(`[Tool: extractProducts] Processing text (${rawText.length} chars)`);
+              // 🚨 FALLBACK: Se rawText estiver vazio mas sourceUrl fornecida, buscar automaticamente
+              let contentToProcess = rawText;
+              if (!rawText || rawText.trim().length === 0) {
+                if (sourceUrl) {
+                  console.log(`[Tool: extractProducts] rawText empty, fetching from sourceUrl: ${sourceUrl}`);
+                  contentToProcess = await fetchPageContent(sourceUrl);
+                } else {
+                  console.error('[Tool: extractProducts] ERROR: rawText empty and no sourceUrl provided!');
+                  return { products: [] };
+                }
+              }
+              
+              console.log(`[Tool: extractProducts] Processing text (${contentToProcess.length} chars)`);
               
               try {
                 // Use OpenAI to extract structured product data
@@ -323,7 +323,7 @@ FORMATO DE RETORNO (JSON válido):
 - Retorne APENAS o JSON, sem texto adicional antes ou depois
 
 TEXTO PARA ANÁLISE (30k chars max):
-${rawText.substring(0, 30000)}
+${contentToProcess.substring(0, 30000)}
 
 URL DE ORIGEM: ${sourceUrl || 'unknown'}`;
 
