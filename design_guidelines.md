@@ -1,9 +1,9 @@
-# ChatCommerce AI - Design Guidelines
+# Ana Clara - Assistente de Vendas AI
 
 ## Design Philosophy
-Premium conversational commerce experience blending AI assistant intelligence with professional shopping platform trust. Interface disappears, letting conversation and products lead.
+Assistente de vendas brasileira intuitiva e didática, focada em conversação natural e experiência de compra simplificada. Interface amigável em português brasileiro com suporte a tema claro e escuro.
 
-**Influences:** Linear (minimalism), ChatGPT/Claude (conversational UI), Stripe (trust), Shopify (merchandising)
+**Influências:** Linear (minimalismo), ChatGPT/Claude (UI conversacional), Mercado Livre/Shopee (e-commerce brasileiro)
 
 ---
 
@@ -84,23 +84,28 @@ Input Bar (h-20, fixed bottom) → Textarea + send
 ### Empty State
 Center-aligned:
 ```
-[Icon w-16]
-ChatCommerce AI (text-4xl font-bold)
-Your AI Shopping Assistant (text-lg opacity-70)
+[Ícone Sparkles w-20 h-20 com gradiente]
+Olá! Sou a Ana Clara (text-4xl font-bold)
+Sua assistente pessoal de compras... (text-lg)
 
-Suggested Queries (clickable pills):
-- rounded-full px-6 py-3 text-sm
-- grid-cols-1 md:grid-cols-3 gap-3
-- hover:scale-105
-- 6-9 examples
+Categorias Populares (6 cards):
+- Moda & Vestuário
+- Eletrônicos
+- Casa & Decoração
+- Beleza & Saúde
+- Livros & Papelaria
+- Esportes & Fitness
+
+Layout: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+Cards com ícone, label e hover:scale-105
 ```
 
 ### Header
 - h-16, max-w-7xl mx-auto px-4
 - flex items-center justify-between
-- Left: Logo (text-xl font-bold)
-- Right: Menu icon (w-8 h-8)
-- border-b
+- Left: Ana Clara branding com ícone Sparkles, título "Ana Clara" e badge "Assistente de Vendas"
+- Right: Toggle de tema claro/escuro (Moon/Sun)
+- border-b com backdrop-blur para efeito glassmorphism
 
 ### Loading States
 - Skeleton: Pulsing shimmer
@@ -119,8 +124,24 @@ Suggested Queries (clickable pills):
 
 ---
 
-## Color System
-*(Reference color tokens from your theme - preserve specific hex/RGB values, background/foreground relationships, and states like hover/active/disabled)*
+## Color System & Dark Mode
+
+**Tema Claro (Light):**
+- Background: Branco puro (0 0% 100%)
+- Foreground: Cinza escuro (0 0% 9%)
+- Primary: Azul (217 91% 60%)
+- Border: Cinza claro (0 0% 89%)
+
+**Tema Escuro (Dark):**
+- Background: Cinza muito escuro (0 0% 9%)
+- Foreground: Branco quase puro (0 0% 98%)
+- Primary: Azul (217 91% 60%) - mantém
+- Border: Cinza médio escuro (0 0% 18%)
+
+**Theme Toggle:**
+- Persistência: localStorage
+- Controle: ThemeProvider context
+- UI: Botão Moon/Sun no header
 
 ---
 
