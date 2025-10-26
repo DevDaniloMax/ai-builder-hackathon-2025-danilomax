@@ -15,6 +15,26 @@ const openai = createOpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || '',
 });
 
+/**
+ * Sliding window: limita histórico para evitar bloat de contexto
+ * Mantém primeiras 3 mensagens (apresentação + coleta) + últimas 12 mensagens
+ */
+function limitMessageHistory(messages: any[]): any[] {
+  const MAX_RECENT_MESSAGES = 12;
+  const KEEP_FIRST_N = 3; // Preserva apresentação + coleta nome/telefone
+  
+  if (messages.length <= MAX_RECENT_MESSAGES + KEEP_FIRST_N) {
+    return messages;
+  }
+  
+  // Mantém as primeiras N + últimas 12
+  const firstMessages = messages.slice(0, KEEP_FIRST_N);
+  const recentMessages = messages.slice(-MAX_RECENT_MESSAGES);
+  
+  console.log(`[limitMessageHistory] Trimmed ${messages.length} → ${firstMessages.length + recentMessages.length} messages`);
+  return [...firstMessages, ...recentMessages];
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Chat endpoint with AI tool orchestration
@@ -37,7 +57,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : Math.floor(Math.random() * 2000) + 5000; // Demais: 5-7 segundos
       await new Promise(resolve => setTimeout(resolve, humanDelay));
       
-      const modelMessages = convertToModelMessages(messages);
+      // 🔥 CORREÇÃO 1: Limitar histórico com sliding window
+      const limitedMessages = limitMessageHistory(messages);
+      const modelMessages = convertToModelMessages(limitedMessages);
       
       const result = await streamText({
         model: openai('gpt-4o-mini'),
@@ -216,18 +238,20 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
         tools: {
           // Tool 1: Search the web for products
           searchWeb: tool({
-            description: 'Search for products on the web using Tavily API. Returns URLs and snippets of relevant product pages.',
+            description: 'Search for products on the web using Tavily API. Returns URLs of relevant product pages.',
             inputSchema: z.object({
               query: z.string().describe('The search query to find products'),
             }),
             execute: async ({ query }: { query: string }) => {
               console.log(`[Tool: searchWeb] Query: "${query}"`);
               const results = await searchWeb(query, 5);
-              return results.map(r => ({
-                title: r.title,
-                url: r.url,
-                snippet: r.content?.substring(0, 200) || ''
-              }));
+              
+              // 🔥 CORREÇÃO 2: Normalizar resposta - apenas URLs essenciais
+              return {
+                count: results.length,
+                urls: results.map(r => r.url),
+                // Removido: title, snippet (bloat desnecessário no histórico)
+              };
             },
           }),
 
@@ -241,11 +265,12 @@ Objetivo: Ajudar o usuário a encontrar o produto que procura com o melhor custo
             execute: async ({ name, phone }: { name: string; phone: string }) => {
               console.log(`[Tool: saveLead] Saving lead: ${name}, ${phone}`);
               try {
-                const [savedLead] = await db.insert(leads).values({ name, phone }).returning();
-                return { success: true, leadId: savedLead.id, message: 'Dados salvos com sucesso!' };
+                await db.insert(leads).values({ name, phone });
+                // 🔥 CORREÇÃO 2: Normalizar resposta - apenas success
+                return { success: true };
               } catch (error: any) {
                 console.error('[Tool: saveLead] Error:', error);
-                return { success: false, error: error.message };
+                return { success: false };
               }
             },
           }),
