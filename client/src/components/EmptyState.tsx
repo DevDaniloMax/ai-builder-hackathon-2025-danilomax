@@ -1,4 +1,4 @@
-import { Sparkles, Shirt, Smartphone, Home as HomeIcon, Heart, BookOpen, Zap } from "lucide-react";
+import { Sparkles, Shirt, DoorOpen, SquareDashedBottom, Footprints, Layers, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface EmptyStateProps {
@@ -6,12 +6,12 @@ export interface EmptyStateProps {
 }
 
 const topCategories = [
-  { icon: Shirt, label: "Moda & Vestuário", query: "Quero comprar roupas" },
-  { icon: Smartphone, label: "Eletrônicos", query: "Quero comprar eletrônicos" },
-  { icon: HomeIcon, label: "Casa & Decoração", query: "Quero comprar para casa" },
-  { icon: Heart, label: "Beleza & Saúde", query: "Quero produtos de beleza" },
-  { icon: BookOpen, label: "Livros & Papelaria", query: "Quero material de papelaria" },
-  { icon: Zap, label: "Esportes & Fitness", query: "Quero produtos de esporte" }
+  { icon: Shirt, label: "👔 Camisetas", query: "camisetas" },
+  { icon: DoorOpen, label: "👗 Vestidos", query: "vestidos" },
+  { icon: SquareDashedBottom, label: "👖 Calças", query: "calcas" },
+  { icon: Footprints, label: "👟 Tênis", query: "tenis" },
+  { icon: Layers, label: "🧥 Jaquetas", query: "jaquetas" },
+  { icon: ShoppingBag, label: "👜 Bolsas", query: "bolsas" }
 ];
 
 export default function EmptyState({ onQuerySelect }: EmptyStateProps) {
@@ -26,12 +26,12 @@ export default function EmptyState({ onQuerySelect }: EmptyStateProps) {
       </h1>
 
       <p className="text-lg text-muted-foreground mb-12 max-w-2xl">
-        Sua assistente pessoal de compras. Me conte o que você procura e vou te ajudar a encontrar as melhores opções!
+        Sua assistente pessoal de moda! Escolha uma categoria ou me conte o que você procura.
       </p>
 
       <div className="max-w-4xl w-full">
         <p className="text-sm font-medium text-foreground mb-6">
-          Categorias Populares
+          🛍️ Categorias de Vestuário
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {topCategories.map((category, index) => (
